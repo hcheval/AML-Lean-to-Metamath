@@ -5,9 +5,14 @@ package mMExtraction {
   -- add package configuration options here
 }
 
-@[default_target]
+-- @[default_target]
 lean_lib MMExtraction {
   -- add library configuration options here
+}
+
+@[default_target]
+lean_exe mmextraction {
+  root := `Main
 }
 
 require MatchingLogic from  
