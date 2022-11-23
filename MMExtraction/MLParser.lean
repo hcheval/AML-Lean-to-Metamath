@@ -13,7 +13,6 @@ namespace ML.Meta
 /--
   Stores a "parsed" Matching Logic statement with fields:
   * `name : Option Name` 
-  * `premises : List Expr` 
   * `conclusion : Expr` 
   * `proof : Option Expr`.
   The `name` and `premises` fields are optional.
@@ -48,23 +47,19 @@ def isOfTypeMLProof : Expr → MetaM Bool :=
   * `name := id`.
 -/
 def parseMLTheorem (id : Name) : MetaM MLTheorem := do 
-  match (← getEnv).find? id with 
-  | ConstantInfo.defnInfo { value := v, .. } =>   
-    let v ← etaExpand v 
-    let ⟨_, _, body⟩ ← lambdaMetaTelescope v 
-    let body ← whnf body 
-    let type ← inferType body 
-    -- should check that `type` is non-dependent before telescoping 
-    let ⟨_, _, targetType⟩ ← forallMetaTelescope type 
-    -- should check that `targetType` is an application of `Proof` before proceeding 
-    return { 
-      conclusion := targetType.getAppArgs[2]!
-      proof := body 
-      -- premises := (← args.toList.mapM inferType).filter <| (Expr.isAppOf . `ML.Proof)
-      label := toString id
-    }
-  | none => throwError m! "Unknown identifier {id}"
-  | _ => throwError "{id} is not a definition"
+  let v ← getDefnValue id
+  let v ← etaExpand v 
+  let ⟨_, _, body⟩ ← lambdaMetaTelescope v 
+  let body ← whnf body 
+  let type ← inferType body 
+  -- should check that `type` is non-dependent before telescoping 
+  let ⟨_, _, targetType⟩ ← forallMetaTelescope type 
+  guard <| targetType.isAppOf `ML.Proof  
+  return { 
+    conclusion := targetType.getAppArgs[2]!
+    proof := body 
+    label := toString id
+  }
 
 
 
@@ -72,11 +67,11 @@ def parseMLTheorem (id : Name) : MetaM MLTheorem := do
 
 
 
-#check ML.Proof
+
 
 section Tests 
 
-  variable {𝕊 : Type} {Γ : Premises 𝕊} {φ ψ : Pattern 𝕊} {x y : EVar}
+  variable {𝕊 : Type} {Γ : Premises 𝕊} {φ ψ χ : Pattern 𝕊} {x y : EVar}
 
   def modusPonensTest0 : Γ ⊢ φ → Γ ⊢ φ ⇒ ψ → Γ ⊢ ψ := Proof.modusPonens
 
@@ -85,6 +80,12 @@ section Tests
   def modusPonensTest2 (h₁ : Γ ⊢ φ) (h₂ : Γ ⊢ φ ⇒ ψ) : Γ ⊢ ψ := Proof.modusPonens h₁ h₂
 
   def modusPonensTest3 : Γ ⊢ φ → Γ ⊢ φ ⇒ ψ → Γ ⊢ ψ  := fun h₁ h₂ => Proof.modusPonens h₁ h₂
+
+  def modusPonensTest4 (h₁ : Γ ⊢ φ) (h₂ : Γ ⊢ φ ⇒ ψ) (h₃ : Γ ⊢ ψ ⇒ χ) := 
+    Proof.modusPonens (Proof.modusPonens h₁ h₂) h₃
+
+  def modusPonensTest5 (h₁ : Γ ⊢ φ[x ⇐ᵉ y]) (h₂ : Γ ⊢ φ[x ⇐ᵉ y] ⇒ ψ[x ⇐ᵉ y]) : Γ ⊢ ψ[x ⇐ᵉ y] := 
+    Proof.modusPonens h₁ h₂
 
   def existQuanTest1 (sfi : (Pattern.evar y).substitutableForEvarIn x φ) :
     Γ ⊢ (φ.substEvar x (.evar y) ⇒ ∃∃ x φ) := Proof.existQuan sfi
@@ -106,17 +107,24 @@ def println {α : Type} [ToString α] (newlines : ℕ) (a : α) : IO Unit := do
 
 
 #eval show MetaM Unit from do 
-  let ⟨name, premises, conclusion, proof⟩ ← parseMLTheorem ``Proof.implSelf
+  let ⟨name, _, conclusion, proof⟩ ← parseMLTheorem ``existQuanTest1
+  -- println 2 name.get!
+  let conclusion ← patternToIRM conclusion 
+  let proof ← proofToIRStructured proof 
+  println 2 name.get! 
+  println 2 conclusion 
+  println 2 proof.createEnv.eraseDup 
+  println 2 proof.toMMString 
+  println 2 proof.toMMString
+#exit 
+
+#eval show MetaM Unit from do 
+  let ⟨name, _, conclusion, proof⟩ ← parseMLTheorem ``modusPonensTest5
   println 2 "After parsing:"
   -- println 2 name.get! 
-  println 2 conclusion
+  println 2 <| ← patternToIRM conclusion
   -- println 2 proof 
   IO.println <| ← proofToIRStructured proof
-
-
--- e : α → β 
--- fun x : α => e x 
-
 
 
 #eval show MetaM Unit from do       

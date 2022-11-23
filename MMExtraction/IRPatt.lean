@@ -13,6 +13,18 @@ def stripUniqFromMVarId (s : String) : String := s.dropWhile (!Char.isDigit .)
 
 /-- 
   Represenents a pattern up to exportable constructs. 
+  Beyond the primitive constructors, these include derived ones like:
+  * universal quantifier
+  * conjunction, disjunction, negation 
+  * nu.
+  Substitutions are also left unfolded in `IRPatt`. 
+
+  Additionally, an `IRPatt` may be a `metavar` representing a generic pattern.
+  Metavars will be exported as Metamath variables.
+
+  An `IRPatt` is exported to Metamath into formats, depending on the place of it use: 
+  * in statements;
+  * in conclusions.
 -/
 inductive IRPatt : Type where 
 | metavar (kind : MMPattKind) (name : String) : IRPatt 
@@ -29,7 +41,7 @@ inductive IRPatt : Type where
 | nu : IRPatt → IRPatt → IRPatt
 | subst : IRPatt → IRPatt → IRPatt → IRPatt
 | wrong (msg : String := "") : IRPatt
-  deriving Repr, Inhabited
+  deriving Repr, Inhabited, DecidableEq
 
 protected def IRPatt.toString : IRPatt → String 
 | metavar _ n => n 
@@ -53,7 +65,7 @@ instance : ToString IRPatt := ⟨IRPatt.toString⟩
 /--
   Given an `e : Expr` of type `Pattern 𝕊`, 
   constructs an `IRPatt` representing the same pattern.
-  The metavariables in `e` will become reified via the `metavar` constructor.
+  The Lean metavariables in `e` will become reified via the `metavar` constructor.
 -/
 partial def patternToIRM (e : Expr) : MetaM IRPatt := do
   if e.isAppOf `ML.Pattern.implication then 
@@ -153,6 +165,31 @@ partial def patternToIR (e : Expr) (kind : MMPattKind) : IRPatt := Id.run do
     return .wrong 
 
 
+
+/--
+  Given `patt : IRPatt`, constructs a Metamath environment in which `patt` makes sense.
+-/
+def IRPatt.createEnv (patt : IRPatt) : Env :=  
+  match patt with 
+  | .metavar k n => 
+    ({ } : Env)
+      |>.addMetavar n
+      |>.addFloating s! "" s! "{n}-is-{k}"
+  | .var e => e.createEnv
+  | .bot => { }
+  | .app e₁ e₂ | .imp e₁ e₂ | .and e₁ e₂ | .or e₁ e₂ => 
+    .merge e₁.createEnv e₂.createEnv
+  | .not e => e.createEnv 
+  | .exist x e | .all x e | .mu x e | .nu x e => .merge x.createEnv e.createEnv
+  | .subst e₁ e₂ e₃ => 
+    let freshMetavar := s! "S-{e₁}-{e₂}-{e₃}"
+    e₁|>.createEnv
+      |>.merge e₂.createEnv 
+      |>.merge e₃.createEnv 
+      |>.addMetavar freshMetavar
+      |>.addEssential "" s! "#Substitution {freshMetavar} {e₁} {e₂} {e₃}" 
+      |>.addFloating "" s! "{freshMetavar}-is-pattern" 
+  | .wrong _ => { containsWrong := true }
 
 
 /-

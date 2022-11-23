@@ -56,6 +56,7 @@ structure Env where
   metavars : List String := [] -- should have no duplicates 
   floatings : List Hypothesis := [] 
   essentials : List Hypothesis := []
+  containsWrong : Bool := false
   deriving DecidableEq, Inhabited, Repr
 
 namespace Env 
@@ -67,6 +68,15 @@ namespace Env
       essentials := env₁.essentials ++ env₂.essentials
     }
 
+  instance : Append Env := ⟨merge⟩
+
+  protected def toString (env : Env) : String := 
+    s! "metavars: {env.metavars} {endl}" ++ 
+    s! "floating: {env.floatings} {endl}" ++ 
+    s! "essential: {env.essentials} {endl}"
+
+  instance : ToString Env := ⟨Env.toString⟩
+
   def addMetavar (env : Env) (mv : String) : Env := 
     { env with metavars := mv :: env.metavars }
 
@@ -75,6 +85,13 @@ namespace Env
 
   def addEssential (env : Env) (label : String) (stmt : String) : Env := 
     { env with essentials := ⟨label, stmt, .essential⟩ :: env.essentials}
+
+  def addEssentials (env : Env) (essentials : List (String × String)) : Env := Id.run do 
+    -- dirty 
+    let mut newenv ← env 
+    for essential in essentials do  
+      newenv ← newenv.addEssential essential.1 essential.2
+    newenv
 
   def metavarIsPattern (env : Env) (mv : String) : Bool := 
     Option.isSome <| env.floatings.find? <| fun hyp => hyp.stmt = s! "{mv}-is-pattern"
@@ -163,13 +180,13 @@ namespace MMPatt
 
   instance : ToString MMPatt := ⟨MMPatt.toString⟩
 
-  def toMMInProof (env : Env) : MMPatt → String 
+  def toMMInProof : MMPatt → String 
   | .metavar k n => s! "{n}-is-{k} "
-  | .var x => x.toMMInProof env ++ "var-is-pattern "
-  | .imp e₁ e₂ => e₂.toMMInProof env ++ e₁.toMMInProof env ++ "imp-is-pattern "
-  | .and e₁ e₂ => e₂.toMMInProof env ++ e₁.toMMInProof env ++ "and-is-pattern "
-  | .all x e => x.toMMInProof env ++ e.toMMInProof env ++ "forall-is-pattern "
-  | .exist x e => x.toMMInProof env ++ e.toMMInProof env ++ "exist-is-pattern "
+  | .var x => x.toMMInProof ++ "var-is-pattern "
+  | .imp e₁ e₂ => e₂.toMMInProof ++ e₁.toMMInProof ++ "imp-is-pattern "
+  | .and e₁ e₂ => e₂.toMMInProof ++ e₁.toMMInProof ++ "and-is-pattern "
+  | .all x e => x.toMMInProof ++ e.toMMInProof ++ "forall-is-pattern "
+  | .exist x e => x.toMMInProof ++ e.toMMInProof ++ "exist-is-pattern "
   | _ => ""
 
 end MMPatt 
