@@ -72,7 +72,7 @@ def parseMLTheorem (id : Name) : MetaM MLTheorem := do
 
 
 
-  
+#check ML.Proof
 
 section Tests 
 
@@ -98,7 +98,6 @@ end Tests
 
 
 -- because typing backslash and then n is remarkably annoying
-def endl : Char := ⟨10, by simp⟩
 
 def println {α : Type} [ToString α] (newlines : ℕ) (a : α) : IO Unit := do 
   IO.println <| toString a
@@ -106,13 +105,12 @@ def println {α : Type} [ToString α] (newlines : ℕ) (a : α) : IO Unit := do
     IO.println ""
 
 
-
 #eval show MetaM Unit from do 
-  let ⟨name, premises, conclusion, proof⟩ ← parseMLTheorem ``existGenTest1
+  let ⟨name, premises, conclusion, proof⟩ ← parseMLTheorem ``Proof.implSelf
   println 2 "After parsing:"
   -- println 2 name.get! 
-  -- println 2 conclusion
-  println 2 proof 
+  println 2 conclusion
+  -- println 2 proof 
   IO.println <| ← proofToIRStructured proof
 
 
@@ -123,7 +121,7 @@ def println {α : Type} [ToString α] (newlines : ℕ) (a : α) : IO Unit := do
 
 #eval show MetaM Unit from do       
   -- parsing 
-  let ⟨name, premises, conclusion, proof⟩ ← parseMLTheorem ``modusPonensTest2
+  let ⟨name, premises, conclusion, proof⟩ ← parseMLTheorem ``Proof.implSelf
   println 2 "After parsing:"
   println 2 name.get! 
   println 2 conclusion

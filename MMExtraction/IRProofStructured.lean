@@ -18,20 +18,22 @@ inductive IRProofStructured where
 | substitution : IRPatt → IRPatt → IRPatt → IRProofStructured → IRProofStructured → IRProofStructured
 | prefixpoint : IRPatt → IRPatt → IRProofStructured → IRProofStructured → IRProofStructured
 | knasterTarski : IRPatt → IRPatt → IRPatt → IRProofStructured → IRProofStructured → IRProofStructured
+| tautology : IRPatt → IRProofStructured
 | hyp (name : String) (assertion : IRPatt) : IRProofStructured
 | substitutableHyp (name : String) (type : Expr) : IRProofStructured 
 | wrong (msg : String := "") : IRProofStructured
 
 protected def IRProofStructured.toString (prf : IRProofStructured) : String := 
 match prf with 
-| modusPonens φ ψ Γφ Γφimpψ => s! "{φ} {ψ} {Γφ.toString} {Γφimpψ.toString} modus-ponens"
-| existQuan φ x y sfi => s! "{φ} {x} {y} {sfi.toString} exist-quan" 
-| existGen φ ψ x nfv Γφimpψ => s! "{φ} {ψ} {x} {nfv.toString} {Γφimpψ.toString} gen"
-| existence x => s! "{x} existence"
-| hyp id type => s! "({id} : {type})"
-| substitutableHyp name type => s! "({name} : {type})"
-| wrong msg => s! "wrong: {msg}"
-| _ => "`ToString` not implemented"
+| modusPonens φ ψ Γφ Γφimpψ => s! "{φ} {ψ} {Γφ.toString} {Γφimpψ.toString} modus-ponens {endl}"
+| existQuan φ x y sfi => s! "{φ} {x} {y} {sfi.toString} exist-quan {endl}" 
+| existGen φ ψ x nfv Γφimpψ => s! "{φ} {ψ} {x} {nfv.toString} {Γφimpψ.toString} gen {endl}"
+| existence x => s! "{x} existence {endl}"
+| hyp id type => s! "({id} : {type}) {endl}"
+| substitutableHyp name type => s! "({name} : {type}) {endl}"
+| tautology φ => s! "{φ} tautology {endl}"
+| wrong msg => s! "(wrong: {msg}) {endl}"
+| _ => "`ToString` not implemented {endl}"
 
 instance : ToString IRProofStructured := ⟨IRProofStructured.toString⟩
 
@@ -45,7 +47,6 @@ def isFreeEVarHyp (e : Expr) : Bool :=
 
 partial def proofToIRStructured (e : Expr) (reducing : Bool := true) : MetaM IRProofStructured := do 
   let e ← if reducing then whnf e else pure e 
-  dbg_trace e
   if e.isAppOf `ML.Proof.modusPonens then 
     let φ := e.getAppArgs[2]! 
     let ψ := e.getAppArgs[3]! 
@@ -65,6 +66,8 @@ partial def proofToIRStructured (e : Expr) (reducing : Bool := true) : MetaM IRP
     let nfv := e.getAppArgs[5]!
     let Γφimpψ := e.getAppArgs[6]!
     return .existGen (← patternToIRM φ) (← patternToIRM ψ) (← patternToIRM x) (← proofToIRStructured nfv) (← proofToIRStructured Γφimpψ)
+  else if e.isAppOf `ML.Proof.tautology then --this case is temporary 
+    return .tautology (← patternToIRM e.getAppArgs[2]!)
   else if e.isMVar then 
     let type ← inferType e
     let name := toString e.mvarId!.name 
