@@ -57,7 +57,6 @@ protected def IRPatt.toString : IRPatt → String
 | mu v e => s! "( \\mu {v.toString} {e.toString} )"
 | nu v e => s! "( \\nu {v.toString} {e.toString} )"
 | subst e₁ e₂ e₃ => s! "{e₁.toString}[{e₂.toString} // {e₃.toString}]"
--- | appcontext c e => s! "{c.toString}[{e.toString}]"
 | wrong msg => s! "Not a pattern: {msg}"
 
 instance : ToString IRPatt := ⟨IRPatt.toString⟩
@@ -322,6 +321,9 @@ def IRPatt.toMMPatt (patt : IRPatt) : (MMPatt × Env) := Id.run do match patt wi
         |>.addEssential "" s! "#Substitution {freshMetavar} {p₁} {p₂} {p₃}" 
         |>.addFloating "" s! "{freshMetavar}-is-pattern"
   ⟩
+
+def IRPatt.toMMInProof (patt : IRPatt) : String := patt.toMMPatt.1.toString
+
 #print Nat.succ
 def isCtorOfFamily (id : Name) (type : Name) : MetaM Bool := do 
   match (← getEnv).find? id with 

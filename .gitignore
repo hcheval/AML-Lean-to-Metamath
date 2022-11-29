@@ -2,3 +2,7 @@
 /lean_packages/*
 !/lean_packages/manifest.json
 /MMExtraction/Playground.lean
+/MMExtraction/Everything.lean
+/MMExtraction2/Everything.lean
+/MMExtraction/MMPropositionalImporter.lean 
+/tautologies.mm

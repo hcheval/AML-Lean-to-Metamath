@@ -37,6 +37,16 @@ structure Hypothesis where
   kind : HypKind
   deriving Inhabited, Repr, DecidableEq
 
+namespace Hypothesis
+
+  def mkFloating (label : String) (stmt : String) : Hypothesis := 
+    ⟨label, stmt, .floating⟩
+
+  def mkEssential (label : String) (stmt : String) : Hypothesis := 
+    ⟨label, stmt, .essential⟩
+
+end Hypothesis
+
 /--
   Prints a Metamath hypotheses into Metamath format, i.e. 
   `"label $kind stmt $."` where `kind` will be wither `e` or `f`.

@@ -2,6 +2,7 @@ import Lean
 import MatchingLogic.Proof 
 import MMExtraction.MMBuilder
 import MMExtraction.IntermediateRepresentation
+import MMExtraction.Attributes
 
 open Lean Elab Term Meta Syntax 
 
@@ -12,22 +13,21 @@ namespace ML.Meta
 
 /--
   Stores a "parsed" Matching Logic statement with fields:
-  * `name : Option Name` 
-  * `conclusion : Expr` 
-  * `proof : Option Expr`.
+  * `label : Option Name` 
+  * `proof : Expr`
+  * `conclusion : Expr := inferType proof`.
   The `name` and `premises` fields are optional.
 -/
 structure MLTheorem where 
-  label : Option Name := none 
+  name : Option Name := none 
   /-
     premises we care about are the following:
     * ml-premises 
     * substitutability 
     * (not) free-variableness 
   -/
-  premises : List Expr := []
   conclusion : Expr 
-  proof : Expr 
+  proof : Expr
   deriving Repr
 
 /--
@@ -47,18 +47,17 @@ def isOfTypeMLProof : Expr → MetaM Bool :=
   * `name := id`.
 -/
 def parseMLTheorem (id : Name) : MetaM MLTheorem := do 
-  let v ← getDefnValue id
-  let v ← etaExpand v 
-  let ⟨_, _, body⟩ ← lambdaMetaTelescope v 
-  let body ← whnf body 
-  let type ← inferType body 
-  -- should check that `type` is non-dependent before telescoping 
+  let defnValue ← getDefnValue id
+  let defnValue ← etaExpand defnValue 
+  let ⟨_, _, body⟩ ← lambdaMetaTelescope defnValue 
+  -- assuming `type` is non-dependent
+  let type ← inferType <| ← whnf body 
   let ⟨_, _, targetType⟩ ← forallMetaTelescope type 
   guard <| targetType.isAppOf `ML.Proof  
   return { 
     conclusion := targetType.getAppArgs[2]!
     proof := body 
-    label := toString id
+    name := id
   }
 
 
@@ -69,117 +68,3 @@ def parseMLTheorem (id : Name) : MetaM MLTheorem := do
 
 
 
-section Tests 
-
-  variable {𝕊 : Type} {Γ : Premises 𝕊} {φ ψ χ : Pattern 𝕊} {x y : EVar}
-
-  def modusPonensTest0 : Γ ⊢ φ → Γ ⊢ φ ⇒ ψ → Γ ⊢ ψ := Proof.modusPonens
-
-  def modusPonensTest1 : Γ ⊢ φ ⇒ ψ → Γ ⊢ φ → Γ ⊢ ψ := fun h₁ h₂ => Proof.modusPonens h₂ h₁ 
-
-  def modusPonensTest2 (h₁ : Γ ⊢ φ) (h₂ : Γ ⊢ φ ⇒ ψ) : Γ ⊢ ψ := Proof.modusPonens h₁ h₂
-
-  def modusPonensTest3 : Γ ⊢ φ → Γ ⊢ φ ⇒ ψ → Γ ⊢ ψ  := fun h₁ h₂ => Proof.modusPonens h₁ h₂
-
-  def modusPonensTest4 (h₁ : Γ ⊢ φ) (h₂ : Γ ⊢ φ ⇒ ψ) (h₃ : Γ ⊢ ψ ⇒ χ) := 
-    Proof.modusPonens (Proof.modusPonens h₁ h₂) h₃
-
-  def modusPonensTest5 (h₁ : Γ ⊢ φ[x ⇐ᵉ y]) (h₂ : Γ ⊢ φ[x ⇐ᵉ y] ⇒ ψ[x ⇐ᵉ y]) : Γ ⊢ ψ[x ⇐ᵉ y] := 
-    Proof.modusPonens h₁ h₂
-
-  def existQuanTest1 (sfi : (Pattern.evar y).substitutableForEvarIn x φ) :
-    Γ ⊢ (φ.substEvar x (.evar y) ⇒ ∃∃ x φ) := Proof.existQuan sfi
-
-  def existGenTest1 (not_fv : ¬ψ.isFreeEvar x) : Γ ⊢ φ ⇒ ψ → Γ ⊢ (∃∃ x φ) ⇒ ψ := Proof.existGen not_fv
-
-  def existenceTest1 : Γ ⊢ ∃∃ x x := Proof.existence
-
-
-end Tests
-
-
--- because typing backslash and then n is remarkably annoying
-
-def println {α : Type} [ToString α] (newlines : ℕ) (a : α) : IO Unit := do 
-  IO.println <| toString a
-  for _ in [1:newlines] do 
-    IO.println ""
-
-
-#eval show MetaM Unit from do 
-  let ⟨name, _, conclusion, proof⟩ ← parseMLTheorem ``existQuanTest1
-  -- println 2 name.get!
-  let conclusion ← patternToIRM conclusion 
-  let proof ← proofToIRStructured proof 
-  println 2 name.get! 
-  println 2 conclusion 
-  println 2 proof.createEnv.eraseDup 
-  println 2 proof.toMMString 
-  println 2 proof.toMMString
-#exit 
-
-#eval show MetaM Unit from do 
-  let ⟨name, _, conclusion, proof⟩ ← parseMLTheorem ``modusPonensTest5
-  println 2 "After parsing:"
-  -- println 2 name.get! 
-  println 2 <| ← patternToIRM conclusion
-  -- println 2 proof 
-  IO.println <| ← proofToIRStructured proof
-
-
-#eval show MetaM Unit from do       
-  -- parsing 
-  let ⟨name, premises, conclusion, proof⟩ ← parseMLTheorem ``Proof.implSelf
-  println 2 "After parsing:"
-  println 2 name.get! 
-  println 2 conclusion
-  println 2 proof 
-  -- #exit
-  println 2 "________________________________"
-  println 2 "After passing patterns to ir:"
-  let conclusion ← patternToIRM conclusion
-  let ⟨proof, proofEnv⟩ ← proofToIRUnstructured proof 
-  println 2 name.get! 
-  println 2 conclusion
-  println 2 proof 
-  println 2 proofEnv.metavars 
-  println 2 proofEnv.floatings 
-  println 2 proofEnv.essentials 
-  println 2 "________________________________"
-  println 2 "After passing conclusion to mm"
-  let ⟨conclusion, env⟩ := conclusion.toMMPatt
-  let env := env.eraseDup
-  println 2 name.get! 
-  println 1 env.metavars
-  println 1 env.floatings
-  println 1 env.essentials
-  println 2 conclusion
-  println 2 proof 
-  println 2 "________________________________"
-  println 2 "After passing proof to mm"
-  let proof := proof.toMMProofUnstructured 
-  println 2 name.get! 
-  println 1 env.metavars
-  println 1 env.floatings
-  println 1 env.essentials
-  println 2 conclusion
-  println 2 proof 
-  println 2 "________________________________"
-  println 2 "After passing proof to string"
-  let proof : List String := proof.map 
-    fun token => match token with 
-    | .inl patt => patt.toMMInProof env 
-    | .inr name => name 
-  println 2 name.get! 
-  let env := env.merge proofEnv
-  println 1 env.metavars
-  println 1 env.floatings
-  println 1 env.essentials
-  println 2 conclusion
-  println 2 proof 
-
-  /-
-    parse → irproof → irpoof × env → 
-  -/
-
-  

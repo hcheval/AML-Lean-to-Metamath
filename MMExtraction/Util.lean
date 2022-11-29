@@ -15,3 +15,8 @@ def getDefnValue (n : Name) : MetaM Expr := do
   | none => throwError m! "Unknown identifier {n}"
   | _ => throwError m! "{n} is not a definition"
 
+-- wrong implementation: adds one extra `sep` at the end, doesn't matter
+def joinWith (s : List String) (sep : String) : String := 
+  s.headD "" ++ (s.tailD [] |>.map (sep ++ .) |>.foldl (. ++ .) (init := ""))
+
+#eval joinWith ["a", "b", "c"] "-"
