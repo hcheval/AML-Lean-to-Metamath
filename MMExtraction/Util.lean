@@ -20,3 +20,5 @@ def joinWith (s : List String) (sep : String) : String :=
   s.headD "" ++ (s.tailD [] |>.map (sep ++ .) |>.foldl (. ++ .) (init := ""))
 
 #eval joinWith ["a", "b", "c"] "-"
+
+def isNotDependentForall (e : Expr) : Bool := !(e.isForall && !e.isArrow)

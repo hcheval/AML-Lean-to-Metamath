@@ -12,7 +12,6 @@ namespace ML.Meta
 
 open Lean Elab Term Meta Syntax
 
-def isNotDependentForall (e : Expr) : Bool := !(e.isForall && e.isArrow)
 
 def getProofExpr (declName : Name) : MetaM Expr := do 
   let defnValue ← getDefnValue declName 
@@ -292,5 +291,7 @@ def test (declName : Name) : MetaM Unit := do
   -- IO.println <| exported.essentials.map IRProof.Hypothesis.toMM   
   -- IO.println exported.claim   
   IO.println exported.toMM  
+
+#eval test ``testLet
 
 
