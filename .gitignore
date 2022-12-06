@@ -6,3 +6,9 @@
 /MMExtraction2/Everything.lean
 /MMExtraction/MMPropositionalImporter.lean 
 /tautologies.mm
+MMExtraction/MMPropositionalImporterParser.lean
+MMExtraction/MMPropositionalImporterLeanBuilder.lean
+MMExtraction/MMPropositionalImporterData.lean
+MMExtraction/MMPropositionalImporter2.lean
+MMExtraction/Metavar.lean
+MMExtraction/ExporterGeneric2.lean

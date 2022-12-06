@@ -10,18 +10,26 @@ set_option autoImplicit false
 
 namespace ML.Meta
 
+structure Premise where 
+  name : String 
+  assertion : IRPatt 
+  deriving BEq, Inhabited, Repr 
+
 structure SubstitutabilityHyp where 
   name : String := "" 
   target : IRPatt 
   substituent : IRPatt 
   var : IRPatt 
-  deriving Inhabited, Repr, DecidableEq 
+  deriving Inhabited, Repr, BEq 
 
-def SubstitutabilityHyp.parse (e : Expr) : MetaM (Option SubstitutabilityHyp) := do
+def isSubstitutabilityHyp (e : Expr) : Bool := 
+  e.isAppOf `ML.Pattern.substitutableForEvarIn
+
+def SubstitutabilityHyp.fromExpr? (e : Expr) : MetaM (Option SubstitutabilityHyp) := do
   if e.isAppOf `ML.Pattern.substitutableForEvarIn then 
-    let var ← patternToIRM e.getAppArgs[1]!
-    let target ← patternToIRM e.getAppArgs[2]!
-    let substituent ← patternToIRM e.getAppArgs[3]!
+    let var ← IRPatt.fromExpr! e.getAppArgs[1]!
+    let target ← IRPatt.fromExpr! e.getAppArgs[2]!
+    let substituent ← IRPatt.fromExpr! e.getAppArgs[3]!
     return some { var := var, substituent := substituent, target := target}
   else return none 
 
@@ -29,20 +37,24 @@ structure FreshnessHyp where
   name : String := ""
   target : IRPatt 
   var : IRPatt 
+  deriving BEq, Inhabited, Repr 
+
+def isFreeEVarHyp (e : Expr) : Bool := 
+  e.isAppOf `ML.Pattern.isFreeEvar 
 
 structure PositivityHyp where 
   name : String := ""
   target : IRPatt 
   var : IRPatt 
-  deriving Inhabited, Repr, DecidableEq
+  deriving Inhabited, Repr, BEq
 
 def isPositivityHyp (e : Expr) : Bool := 
   e.isAppOf `ML.Pattern.Positive 
 
-def PositivityHyp.parse (e : Expr) : MetaM (Option PositivityHyp) := do 
+def PositivityHyp.fromExpr? (e : Expr) : MetaM (Option PositivityHyp) := do 
   if e.isAppOf `ML.Pattern.Positive then 
-    let target ← patternToIRM e.getAppArgs[1]!
-    let var : IRPatt := .metavar .svar "?who?"
+    let target ← IRPatt.fromExpr! e.getAppArgs[1]!
+    let var : IRPatt := .metavar ⟨"?who?", .svar⟩
     return some { target := target, var := var}
   else return none 
 
@@ -64,7 +76,9 @@ inductive IRProof where
 | freshnessHyp : FreshnessHyp → IRProof 
 | positivityHyp : PositivityHyp → IRProof
 | wrong (msg : String := "") : IRProof
+  deriving BEq, Inhabited, Repr 
 
+-- kind of useless
 protected def IRProof.toString (prf : IRProof) : String := 
   match prf with 
   | axK φ ψ => s! "[{φ} {ψ} axK]"
@@ -85,82 +99,76 @@ protected def IRProof.toString (prf : IRProof) : String :=
 
 instance : ToString IRProof := ⟨IRProof.toString⟩
 
-def isSubstitutabilityHyp (e : Expr) : Bool := 
-  e.isAppOf `ML.Pattern.substitutableForEvarIn
-
-def isFreeEVarHyp (e : Expr) : Bool := 
-  e.isAppOf `ML.Pattern.isFreeEvar 
-
-partial def proofToIRStructured (e : Expr) (reducing : Bool := true) : MetaM IRProof := do 
+partial def IRProof.fromExpr! (e : Expr) (reducing : Bool := true) : MetaM IRProof := do 
   let e ← if reducing then whnf e else pure e 
   let declName := e.getAppFn.constName! 
   
   if e.isAppOf `ML.Proof.axK then 
-    let φ ← patternToIRM e.getAppArgs[2]! 
-    let ψ ← patternToIRM e.getAppArgs[3]!
+    let φ ← IRPatt.fromExpr! e.getAppArgs[2]! 
+    let ψ ← IRPatt.fromExpr! e.getAppArgs[3]!
     return .axK φ ψ
   else if e.isAppOf `ML.Proof.axS then 
-    let φ ← patternToIRM e.getAppArgs[2]!
-    let ψ ← patternToIRM e.getAppArgs[3]!
-    let χ ← patternToIRM e.getAppArgs[4]!
+    let φ ← IRPatt.fromExpr! e.getAppArgs[2]!
+    let ψ ← IRPatt.fromExpr! e.getAppArgs[3]!
+    let χ ← IRPatt.fromExpr! e.getAppArgs[4]!
     return .axS φ ψ χ
   else if e.isAppOf `ML.Proof.dne then 
-    let φ ← patternToIRM e.getAppArgs[2]!
+    let φ ← IRPatt.fromExpr! e.getAppArgs[2]!
     return .dne φ
   else if e.isAppOf `ML.Proof.modusPonens then 
     let φ := e.getAppArgs[2]! 
     let ψ := e.getAppArgs[3]! 
     let Γφ := e.getAppArgs[4]!
     let Γφimpψ := e.getAppArgs[5]! 
-    return .modusPonens (← patternToIRM φ) (← patternToIRM ψ) (← proofToIRStructured Γφ reducing) (← proofToIRStructured Γφimpψ reducing)
+    return .modusPonens (← IRPatt.fromExpr! φ) (← IRPatt.fromExpr! ψ) (← IRProof.fromExpr! Γφ reducing) (← IRProof.fromExpr! Γφimpψ reducing)
   else if e.isAppOf `ML.Proof.existQuan then 
     let φ := e.getAppArgs[2]! 
     let x := e.getAppArgs[3]! 
     let y := e.getAppArgs[4]! 
     let sfi := e.getAppArgs[5]! 
-    return .existQuan (← patternToIRM φ) (← patternToIRM x) (← patternToIRM y) (← proofToIRStructured sfi) 
+    return .existQuan (← IRPatt.fromExpr! φ) (← IRPatt.fromExpr! x) (← IRPatt.fromExpr! y) (← IRProof.fromExpr! sfi) 
   else if e.isAppOf `ML.Proof.existGen then 
     let φ := e.getAppArgs[2]!
     let ψ := e.getAppArgs[3]!
     let x := e.getAppArgs[4]!
     let nfv := e.getAppArgs[5]!
     let Γφimpψ := e.getAppArgs[6]!
-    return .existGen (← patternToIRM φ) (← patternToIRM ψ) (← patternToIRM x) (← proofToIRStructured nfv) (← proofToIRStructured Γφimpψ)
+    return .existGen (← IRPatt.fromExpr! φ) (← IRPatt.fromExpr! ψ) (← IRPatt.fromExpr! x) (← IRProof.fromExpr! nfv) (← IRProof.fromExpr! Γφimpψ)
   else if e.isAppOf `ML.Proof.existence then 
-    let x ← patternToIRM e.getAppArgs[2]! 
+    let x ← IRPatt.fromExpr! e.getAppArgs[2]! 
     return .existence x 
   else if e.isAppOf `ML.Proof.substitution then 
-    let φ ← patternToIRM e.getAppArgs[2]!
-    let ψ ← patternToIRM e.getAppArgs[3]!
-    let X ← patternToIRM e.getAppArgs[4]!
-    let sfi ← proofToIRStructured e.getAppArgs[5]!
-    let h ← proofToIRStructured e.getAppArgs[6]! 
+    let φ ← IRPatt.fromExpr! e.getAppArgs[2]!
+    let ψ ← IRPatt.fromExpr! e.getAppArgs[3]!
+    let X ← IRPatt.fromExpr! e.getAppArgs[4]!
+    let sfi ← IRProof.fromExpr! e.getAppArgs[5]!
+    let h ← IRProof.fromExpr! e.getAppArgs[6]! 
     return .substitution φ ψ X sfi h 
   else if e.isAppOf `ML.Proof.prefixpoint then 
-    let φ ← patternToIRM e.getAppArgs[2]!
-    let X ← patternToIRM e.getAppArgs[3]! 
-    let hpos ← proofToIRStructured e.getAppArgs[4]! 
-    let sfi ← proofToIRStructured e.getAppArgs[5]! 
+    let φ ← IRPatt.fromExpr! e.getAppArgs[2]!
+    let X ← IRPatt.fromExpr! e.getAppArgs[3]! 
+    let hpos ← IRProof.fromExpr! e.getAppArgs[4]! 
+    let sfi ← IRProof.fromExpr! e.getAppArgs[5]! 
     return .prefixpoint φ X hpos sfi 
   else if e.isAppOf `ML.Proof.knasterTarski then 
-    let φ ← patternToIRM e.getAppArgs[2]!
-    let ψ ← patternToIRM e.getAppArgs[3]!
-    let X ← patternToIRM e.getAppArgs[4]!
-    let sfi ← proofToIRStructured e.getAppArgs[5]!
-    let h ← proofToIRStructured e.getAppArgs[6]!
+    let φ ← IRPatt.fromExpr! e.getAppArgs[2]!
+    let ψ ← IRPatt.fromExpr! e.getAppArgs[3]!
+    let X ← IRPatt.fromExpr! e.getAppArgs[4]!
+    let sfi ← IRProof.fromExpr! e.getAppArgs[5]!
+    let h ← IRProof.fromExpr! e.getAppArgs[6]!
     return .knasterTarski φ ψ X sfi h
   else if e.isMVar then 
     let type ← inferType e
     let name := toString e.mvarId!.name 
     if type.isAppOf `ML.Proof then 
-      return .hyp name (← patternToIRM type.getAppArgs[2]!)
+      return .hyp name (← IRPatt.fromExpr! type.getAppArgs[2]!)
     if isSubstitutabilityHyp type then 
-      let substHyp ← SubstitutabilityHyp.parse e
+      let substHyp ← SubstitutabilityHyp.fromExpr? e
       let substHyp := substHyp.get! -- is not none, but ugly 
       return .substitutabilityHyp { substHyp with name := name }
     else if isPositivityHyp type then 
-      let posHyp ← PositivityHyp.parse e 
-      let posHyp := posHyp.get! 
+      let posHyp ← PositivityHyp.fromExpr? e 
+      let posHyp := posHyp.get! -- is not none, but ugly
       return .positivityHyp { posHyp with name := name }
     else return .wrong (msg := toString type)
   else if e.isSorry then
@@ -231,22 +239,51 @@ def createEnv (proof : IRProof) : Env :=
   patternsEnv ++ hypEnv
 
 
-def toMMString (proof : IRProof) : String :=
-  match proof with 
+def toMMProof : IRProof → MMProof 
   | axK φ ψ => 
-    s! "{φ.toMMInProof} {ψ.toMMInProof} proof-rule-prop-1"
+    .app "proof-rule-prop-1" [φ.toMMProof, ψ.toMMProof]
   | axS φ ψ χ => 
-    s! "{φ.toMMInProof} {ψ.toMMInProof} {χ.toMMInProof} proof-rule-prop-2"
+    .app "proof-rule-prop-2" [φ.toMMProof, ψ.toMMProof, χ.toMMProof]
   | dne φ => 
-    s! "{φ.toMMInProof} proof-rule-prop-3"
+    .app "proof-rule-prop-3" [φ.toMMProof]
   | modusPonens φ ψ hφ hφψ => 
-    s! "{φ.toMMInProof} {ψ.toMMInProof} {hφ.toMMString} {hφψ.toMMString} proof-rule-mp"
+    .app "proof-rule-mp" [φ.toMMProof, ψ.toMMProof, hφ.toMMProof, hφψ.toMMProof]
   | existQuan φ x y sfi => 
-    s! "{φ.toMMInProof} {x.toMMInProof} {y.toMMInProof} {sfi.toMMString} proof-rule-exists"
+    .app "proof-rule-exists" [φ.toMMProof, x.toMMProof, y.toMMProof, sfi.toMMProof]
+  | .existGen φ ψ x nfv h =>
+    .app "exist-gen" [φ.toMMProof, ψ.toMMProof, x.toMMProof, nfv.toMMProof, h.toMMProof]
   | existence x => 
-    s! "{x.toMMInProof} proof-rule-existence" 
-  | hyp name _ => name
-  | substitutabilityHyp h => h.name
-  | freshnessHyp h => h.name 
-  | positivityHyp h => h.name
-  | _ => "toMMString not implemented"
+    .app "proof-rule-existence" [x.toMMProof]
+  | hyp name _ => .app name []
+  | substitutabilityHyp h => .app h.name []
+  | freshnessHyp h => .app h.name []
+  | positivityHyp h => .app h.name []
+  | substitution φ ψ X sfi h => 
+    .app "substitution" [φ.toMMProof, ψ.toMMProof, X.toMMProof, sfi.toMMProof, h.toMMProof] 
+  | prefixpoint φ X pos sfi => 
+    .app "prefixpoint" [φ.toMMProof, X.toMMProof, pos.toMMProof, sfi.toMMProof]
+  | knasterTarski φ ψ X sfi h =>
+    .app "knaster-tarski" [φ.toMMProof, ψ.toMMProof, X.toMMProof, sfi.toMMProof, h.toMMProof]
+  | wrong msg => .app s! "wrong {msg}" []
+
+end IRProof
+
+
+structure IRTheorem where 
+  label : String 
+  proof : IRProof 
+  conclusion : IRPatt 
+  env : Env 
+  deriving BEq, Inhabited, Repr 
+
+namespace IRTheorem
+
+  def toMMTheorem (thm : IRTheorem) : MMTheorem := 
+    {
+      label := thm.label 
+      proof := thm.proof.toMMProof
+      conclusion := thm.conclusion.toClaim
+      env := thm.env  
+    }
+
+end IRTheorem

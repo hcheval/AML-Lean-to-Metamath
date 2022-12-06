@@ -9,12 +9,6 @@ namespace ML.Meta
 
 def endl : Char := ⟨10, by simp⟩
 
-def getDefnValue (n : Name) : MetaM Expr := do 
-  match (← getEnv).find? n with 
-  | ConstantInfo.defnInfo { value := v, .. } => return v 
-  | none => throwError m! "Unknown identifier {n}"
-  | _ => throwError m! "{n} is not a definition"
-
 -- wrong implementation: adds one extra `sep` at the end, doesn't matter
 def joinWith (s : List String) (sep : String) : String := 
   s.headD "" ++ (s.tailD [] |>.map (sep ++ .) |>.foldl (. ++ .) (init := ""))
@@ -22,3 +16,7 @@ def joinWith (s : List String) (sep : String) : String :=
 #eval joinWith ["a", "b", "c"] "-"
 
 def isNotDependentForall (e : Expr) : Bool := !(e.isForall && !e.isArrow)
+
+def _root_.Option.get!! {α : Type _} [Inhabited α] : Option α → α 
+| some x => x 
+| none => panic! "Option.get!! got none value "

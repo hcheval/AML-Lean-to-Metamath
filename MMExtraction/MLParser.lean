@@ -1,8 +1,9 @@
 import Lean
 import MatchingLogic.Proof 
 import MMExtraction.MMBuilder
-import MMExtraction.IntermediateRepresentation
+import MMExtraction.IRProofStructured
 import MMExtraction.Attributes
+import MMExtraction.Tests
 
 open Lean Elab Term Meta Syntax 
 
@@ -20,12 +21,6 @@ namespace ML.Meta
 -/
 structure MLTheorem where 
   name : Option Name := none 
-  /-
-    premises we care about are the following:
-    * ml-premises 
-    * substitutability 
-    * (not) free-variableness 
-  -/
   conclusion : Expr 
   proof : Expr
   deriving Repr
@@ -36,35 +31,68 @@ structure MLTheorem where
 def isOfTypeMLProof : Expr → MetaM Bool := 
   fun e => do return Expr.isAppOf (← inferType e) `ML.Proof
 
+/--
+  Returns the definition of `declName` or throws an error if `declName` is not a definition.
+-/
+def getDefnValue (declName : Name) : MetaM Expr := do 
+  match (← getEnv).find? declName with 
+  | ConstantInfo.defnInfo { value := v, .. } => return v 
+  | none => throwError m! "Unknown identifier {declName}"
+  | _ => throwError m! "{declName} is not a definition"
+
+
 
 -- TO REMEMBER: meta-telescopes should only be called once! A subsequent call will give fresh mvars, thus breaking coherence
 /--
-  Given a Matching Logic theorem `def id : Γ ⊢ φ₁ → ... → Γ ⊢ φₙ → Γ ⊢ ψ := prf`,
-  `parseMLStmt id` returns a `MLTheorem` with 
-  * `conclusion := ψ`
-  * `proof := prf`
-  * `premises := [φ₁, ..., φₙ]` 
-  * `name := id`.
+  Given a Matching Logic theorem `def declName : Γ ⊢ φ₁ → ... → Γ ⊢ φₙ → Γ ⊢ ψ := prf`,
+  `parseMLStmt declName` returns a `MLTheorem` with 
+  * `conclusion : Expr := ψ`
+  * `proof : Expr := prf`
+  * `name : Option Expr := declName`.
+
+  The `proof` will be fully eta-expanded and with all bound variables 
+  replaced by metavariables.
 -/
-def parseMLTheorem (id : Name) : MetaM MLTheorem := do 
-  let defnValue ← getDefnValue id
+def parseMLTheorem (declName : Name) : MetaM MLTheorem := do 
+  let defnValue ← getDefnValue declName
   let defnValue ← etaExpand defnValue 
   let ⟨_, _, body⟩ ← lambdaMetaTelescope defnValue 
-  -- assuming `type` is non-dependent
   let type ← inferType <| ← whnf body 
+  -- guard <| isNotDependentForall type 
+  if !isNotDependentForall type 
+    then throwError m! "Unexpected dependent arrow in {type}" 
   let ⟨_, _, targetType⟩ ← forallMetaTelescope type 
-  guard <| targetType.isAppOf `ML.Proof  
+  -- guard <| targetType.isAppOf `ML.Proof
+  if !targetType.isAppOf `ML.Proof 
+    then throwError m! "{declName} is not a Matching Logic theorem"
   return { 
     conclusion := targetType.getAppArgs[2]!
     proof := body 
-    name := id
+    name := declName
   }
 
+def MLTheorem.toIRTheorem (thm : MLTheorem) : MetaM IRTheorem := do 
+  let irproof ← IRProof.fromExpr! thm.proof 
+  return {
+    label := toString thm.name.get! 
+    proof := irproof 
+    conclusion := ← IRPatt.fromExpr! thm.conclusion 
+    env := irproof.createEnv.eraseDup
+  }
+
+#eval show MetaM _ from do  
+  let mlThm ← parseMLTheorem ``Tests.formationExists0
+  let irThm : IRTheorem ← mlThm.toIRTheorem
+  let mmThm : MMTheorem := irThm.toMMTheorem
+  let mmFile : MMFile := .fromMMTheorems [mmThm]
+  IO.println <| mmFile.toMM
 
 
+def mainCore : MetaM Unit := do 
+  let mlThm ← parseMLTheorem ``Tests.formationExists0
+  let irThm ← mlThm.toIRTheorem 
+  let mmThm := irThm.toMMTheorem 
+  let mmFile : MMFile := .fromMMTheorems [mmThm]
+  mmFile.writeToFile "first-try.mm"
 
-
-
-
-
-
+#eval mainCore
