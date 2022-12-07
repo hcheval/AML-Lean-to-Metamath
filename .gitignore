@@ -4,7 +4,6 @@
 /MMExtraction/Playground.lean
 /MMExtraction/Everything.lean
 /MMExtraction2/Everything.lean
-/MMExtraction/MMPropositionalImporter.lean 
 /tautologies.mm
 MMExtraction/MMPropositionalImporterParser.lean
 MMExtraction/MMPropositionalImporterLeanBuilder.lean
