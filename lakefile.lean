@@ -16,5 +16,5 @@ lean_lib MMExtraction {
 -- }
 
 require MatchingLogic from  
-  git "https://gitlab.com/ilds/aml-lean/MatchingLogic.git"@"propositional-axioms"
+  git "https://gitlab.com/ilds/aml-lean/MatchingLogic.git"@"no-wf"
 

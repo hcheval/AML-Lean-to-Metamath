@@ -4,13 +4,6 @@ open ML Pattern Proof
 
 namespace ML.Meta.Tests 
 
-section PattternFormationTests 
-
-  variable {𝕊 : Type} {Γ : Premises 𝕊} {φ ψ χ : Pattern 𝕊} {x y : EVar}
-
-  def formationExists0 : Γ ⊢ ∃∃ x x ⇒ (∃∃ x x) ⇒ ∃∃ x x := .axK  
-
-end PattternFormationTests 
 
 
 
@@ -129,8 +122,6 @@ def modusPonensTest8 : Γ ⊢ φ ⇒ ψ → Γ ⊢ φ → Γ ⊢ ψ := fun h₁ 
 
 section Transparency 
 
-  @[irreducible]
-  def test1 (h₁ : Γ ⊢ ψ) : Γ ⊢ φ ⇒ ψ := modusPonens h₁ axK
 
   @[irreducible]
   def testImpRelf : Γ ⊢ φ ⇒ φ := sorry 

@@ -81,7 +81,7 @@ def MLTheorem.toIRTheorem (thm : MLTheorem) : MetaM IRTheorem := do
   }
 
 #eval show MetaM _ from do  
-  let mlThm ← parseMLTheorem ``Tests.formationExists0
+  let mlThm ← parseMLTheorem ``Tests.modusPonensTest4
   let irThm : IRTheorem ← mlThm.toIRTheorem
   let mmThm : MMTheorem := irThm.toMMTheorem
   let mmFile : MMFile := .fromMMTheorems [mmThm]
@@ -89,7 +89,7 @@ def MLTheorem.toIRTheorem (thm : MLTheorem) : MetaM IRTheorem := do
 
 
 def mainCore : MetaM Unit := do 
-  let mlThm ← parseMLTheorem ``Tests.formationExists0
+  let mlThm ← parseMLTheorem ``Tests.modusPonensTest4
   let irThm ← mlThm.toIRTheorem 
   let mmThm := irThm.toMMTheorem 
   let mmFile : MMFile := .fromMMTheorems [mmThm]

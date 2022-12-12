@@ -1,7 +1,6 @@
 import Lean 
 import MMExtraction.MMBuilder
 import MMExtraction.IRPatt
-import MMExtraction.IRProofUnstructured
 import MMExtraction.IRProofStructured
 import MatchingLogic
 

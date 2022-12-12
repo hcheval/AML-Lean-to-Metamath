@@ -178,18 +178,21 @@ partial def IRProof.fromExpr! (e : Expr) (reducing : Bool := true) : MetaM IRPro
 
 namespace IRProof 
 
+#eval 1 :: [0, 2]
+
+
 def getPatterns (prf : IRProof) : List IRPatt :=
   match prf with 
   | axK φ ψ => [φ, ψ] 
   | axS φ ψ χ => [φ, ψ, χ]
   | dne φ => [φ]
-  | modusPonens φ ψ h₁ h₂ => φ :: ψ :: h₁.getPatterns ++ h₂.getPatterns 
-  | existQuan φ x y sfi => φ :: x :: y :: sfi.getPatterns
-  | existGen φ ψ x nfv Γφimpψ => φ :: ψ :: x :: nfv.getPatterns ++ Γφimpψ.getPatterns
+  | modusPonens φ ψ h₁ h₂ => .cons φ <| .cons ψ <| h₁.getPatterns ++ h₂.getPatterns
+  | existQuan φ x y sfi => sfi.getPatterns.cons φ |>.cons x |>.cons y 
+  | existGen φ ψ x nfv Γφimpψ => [φ, ψ, x] ++ nfv.getPatterns ++ Γφimpψ.getPatterns
   | existence x => [x]
-  | substitution φ ψ X sfi h => φ :: ψ :: X :: sfi.getPatterns ++ h.getPatterns 
-  | knasterTarski φ ψ X sfi h => φ :: ψ :: X :: sfi.getPatterns ++ h.getPatterns 
-  | prefixpoint φ X hpos sfi => φ :: X :: hpos.getPatterns ++ sfi.getPatterns 
+  | substitution φ ψ X sfi h => [φ, ψ, X] ++ sfi.getPatterns ++ h.getPatterns 
+  | knasterTarski φ ψ X sfi h => [φ, ψ, X] ++ sfi.getPatterns ++ h.getPatterns 
+  | prefixpoint φ X hpos sfi => [φ, X] ++ hpos.getPatterns ++ sfi.getPatterns 
   | hyp id assrt => [assrt]
   | substitutabilityHyp h => []
   | freshnessHyp h => []
