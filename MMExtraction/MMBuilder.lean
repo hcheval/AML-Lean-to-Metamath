@@ -111,6 +111,22 @@ namespace Env
       newenv ← newenv.addEssential essential.1 essential.2
     newenv
 
+
+  def addElementVar (env : Env) (name : String) : Env := 
+    env 
+      |>.addMetavar name 
+      |>.addFloating s!"{name}-is-element-var" s!"#ElementVariable {name}"
+
+  def addSetVar (env : Env) (name : String) : Env := 
+    env 
+      |>.addMetavar name 
+      |>.addFloating s!"{name}-is-element-var" s!"#ElementVariable {name}"
+
+  def addSymbol (env : Env) (name : String) : Env := 
+    env 
+      |>.addMetavar name 
+      |>.addFloating s!"{name}-is-symbol" s!"#Symbol {name}"
+
   def metavarIsPattern (env : Env) (mv : String) : Bool := 
     Option.isSome <| env.floatings.find? <| fun hyp => hyp.stmt = s! "{mv}-is-pattern"
 
