@@ -15,13 +15,14 @@ namespace ML.Meta
   * `essential`.
 -/
 inductive HypKind where 
-| floating | essential 
+| floating | essential | assumption
   deriving Inhabited, Repr, DecidableEq
 
 instance : ToString HypKind where 
   toString k := match k with 
   | .floating => "f"
   | .essential => "e"
+  | .assumption => "a"
 
 abbrev Claim := String 
 
@@ -47,6 +48,9 @@ namespace Hypothesis
   def mkEssential (label : String) (stmt : Claim) : Hypothesis := 
     ⟨label, stmt, .essential⟩
 
+  def mkAssumption (label : String) (stmt : Claim) : Hypothesis := 
+    ⟨label, stmt, .assumption⟩
+
 end Hypothesis
 
 /--
@@ -68,7 +72,7 @@ structure Env where
   metavars : List String := [] -- should have no duplicates 
   floatings : List Hypothesis := [] 
   essentials : List Hypothesis := []
-  containsWrong : Bool := false
+  assumptions : List Hypothesis := []
   deriving DecidableEq, Inhabited, Repr
 
 namespace Env 
@@ -85,7 +89,8 @@ namespace Env
   protected def toString (env : Env) : String := 
     s! "metavars: {env.metavars} {endl}" ++ 
     s! "floating: {env.floatings} {endl}" ++ 
-    s! "essential: {env.essentials} {endl}"
+    s! "essential: {env.essentials} {endl}" ++ 
+    s! "assumtpions: {env.assumptions} {endl}" 
 
   instance : ToString Env := ⟨Env.toString⟩
 
@@ -103,6 +108,9 @@ namespace Env
 
   def addEssential (env : Env) (label : String) (stmt : Claim) : Env := 
     { env with essentials := ⟨label, stmt, .essential⟩ :: env.essentials}
+
+  def addAssumption (env : Env) (label : String) (stmt : Claim) : Env := 
+    { env with assumptions := .mkAssumption label stmt :: env.assumptions }
 
   def addEssentials (env : Env) (essentials : List (String × String)) : Env := Id.run do 
     -- dirty 

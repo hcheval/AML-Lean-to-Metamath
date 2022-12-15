@@ -20,5 +20,3 @@ def isNotDependentForall (e : Expr) : Bool := !(e.isForall && !e.isArrow)
 def _root_.Option.get!! {α : Type _} [Inhabited α] : Option α → α 
 | some x => x 
 | none => panic! "Option.get!! got none value "
-
-infixl:80 (priority := high) "::" => List.cons
