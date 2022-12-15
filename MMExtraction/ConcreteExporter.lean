@@ -337,7 +337,6 @@ fun h => do
   | .evar y => 
     if h' : x = y then 
       return .varSame (.inl x) (.inl y) _ _ (by rw [h']) (by simp_all)
-    else 
-      return .varDiff _ _ _ _
-  | _ => none 
+    else none 
+  | _ => none -- 
 
