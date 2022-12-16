@@ -22,7 +22,7 @@
   {"git":
    {"url": "https://gitlab.com/ilds/aml-lean/MatchingLogic.git",
     "subDir?": null,
-    "rev": "399ca26fdcf8c9780bf88f821ad9e496e9387b2d",
+    "rev": "0eef0d7a2e39ee3d7af6b29a41cf534ba4e3a151",
     "name": "MatchingLogic",
     "inputRev?": "no-wf"}},
   {"git":
@@ -34,7 +34,7 @@
   {"git":
    {"url": "https://github.com/leanprover-community/mathlib4.git",
     "subDir?": null,
-    "rev": "021b6b605a84e9629f8cbbed6d0ef543af00854f",
+    "rev": "f976b5e659f4cd82fed4eb547ae4057f7d576c61",
     "name": "mathlib",
     "inputRev?": null}},
   {"git":
