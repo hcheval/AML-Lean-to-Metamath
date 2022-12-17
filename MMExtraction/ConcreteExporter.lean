@@ -176,6 +176,13 @@ protected def Var.toMMProof : Var → MMProof
 instance : ToMMProof Var where toMMProof := Var.toMMProof
 
 
+
+
+
+
+
+/- Freshness -/
+
 inductive Fresh (xX : Var) : Pattern 𝕊 → Type where 
 | var (yY : Var) : xX ≠ yY → Fresh xX yY.toPattern 
 | symbol (σ : 𝕊) : Fresh xX (.symbol σ)
@@ -186,6 +193,21 @@ inductive Fresh (xX : Var) : Pattern 𝕊 → Type where
 | existShadowed (x : EVar) (φ : Pattern 𝕊) : xX = .inl x → Fresh xX (∃∃ x φ)
 | mu (X : SVar) (φ : Pattern 𝕊) : xX ≠ .inr X → Fresh xX φ → Fresh xX (μ X φ)
 | muShadowed (X : SVar) (φ : Pattern 𝕊) : xX = .inr X → Fresh xX (μ X φ)
+
+protected def Fresh.toMMProof {xX : Var} {φ : Pattern 𝕊} (fresh : Fresh xX φ) : MMProof := 
+  match fresh with 
+  | var yY _ => .app "fresh-in-var" [toMMProof xX, toMMProof yY]
+  | symbol σ => .app "fresh-in-symbol" [toMMProof xX, toMMProof σ]
+  | bot => .app "fresh-in-bot" [toMMProof xX, toMMProof (⊥ : Pattern 𝕊)]
+  | imp φ ψ freshφ freshψ => .app "fresh-in-imp" [toMMProof xX, toMMProof φ, toMMProof ψ, freshφ.toMMProof, freshψ.toMMProof]
+  | app φ ψ freshφ freshψ => .app "fresh-in-imp" [toMMProof xX, toMMProof φ, toMMProof ψ, freshφ.toMMProof, freshψ.toMMProof]
+  | exist _ φ _ freshφ => .app "fresh-in-exists" [toMMProof xX, toMMProof φ, freshφ.toMMProof]
+  | existShadowed _ φ _ => .app "fresh-in-exists-shadwoed" [toMMProof xX, toMMProof φ]
+  | mu _ φ _ freshφ => .app "fresh-in-mu" [toMMProof xX, toMMProof φ, freshφ.toMMProof]
+  | muShadowed _ φ _ => .app "fresh-in-mu-shadwoed" [toMMProof xX, toMMProof φ]
+
+instance {xX : Var} {φ : Pattern 𝕊} : ToMMProof <| Fresh xX φ where 
+  toMMProof := Fresh.toMMProof
 
 def autoFresh (xX : Var) (φ : Pattern 𝕊) : Option (Fresh xX φ) := do 
   match φ with 
@@ -250,93 +272,187 @@ def autoFreshDirectEVar : EVar → Pattern 𝕊 → Option MMProof := autoFreshD
 def autoFreshDirectSVar : SVar → Pattern 𝕊 → Option MMProof := autoFreshDirect ∘ .inr
 
 
--- should rename this with `has` 
-def Pattern.isVar (φ : Pattern 𝕊) (xX : Var) : Bool := 
-  match xX with 
-  | .inl x => φ.isEvar x 
-  | .inr X => φ.isSvar X 
-
-mutual /- `autoPositive` `autoNegative`-/
-  -- these are not partial, but I don't care about their termination for the time being 
-  partial def autoPositive (xX : Var) (φ : Pattern 𝕊) : Option MMProof := do 
-    if φ.isVar xX then 
-      return .app "positive-disjoint" [toMMProof xX, toMMProof φ]
-    else match φ with 
-    | .evar x => return .app "positive-in-var" [toMMProof xX, toMMProof x] 
-    | .svar X => return .app "positive-in-var" [toMMProof xX, toMMProof X]
-    | .symbol σ => return .app "positive-in-symbol" [toMMProof xX, toMMProof σ]
-    | ⊥ => return .app "positive-in-bot" [toMMProof xX]
-    | φ₁ ⇒ φ₂ => return .app "positive-in-imp" [toMMProof xX, toMMProof φ₁, toMMProof φ₂, ← autoNegative xX φ₁, ← autoPositive xX φ₂]
-    | φ₁ ⬝ φ₂ => return .app "positive-in-app" [toMMProof xX, toMMProof φ₁, toMMProof φ₂, ← autoPositive xX φ₁, ← autoPositive xX φ₂] 
-    | ∃∃ x ψ => return .app "positive-in-exists" [toMMProof xX, toMMProof ψ, ← autoPositive xX ψ]
-    | μ X ψ => return .app "positive-in-mu" [toMMProof xX, toMMProof ψ, ← autoPositive xX ψ]
-
-  partial def autoNegative (xX : Var) (φ : Pattern 𝕊) : Option MMProof := do 
-    if φ.isVar xX then 
-      return .app "negative-disjoint" [toMMProof xX, toMMProof φ]
-    else match φ with 
-    | .evar x => 
-      if xX != .inl x then 
-        return .app "negative-in-var" [toMMProof xX, toMMProof x] 
-      else none -- this I think is needed to match the MM definition, but evars should never be negative, the notion does not exist for them
-    | .svar X => 
-      if xX != .inr X then 
-        return .app "negative-in-var" [toMMProof xX, toMMProof X]
-      else none 
-    | .symbol σ => return .app "negative-in-symbol" [toMMProof xX, toMMProof σ]
-    | ⊥ => return .app "negative-in-bot" [toMMProof xX]
-    | φ₁ ⇒ φ₂ => return .app "negative-in-imp" [toMMProof xX, toMMProof φ₁, toMMProof φ₂, ← autoPositive xX φ₁, ← autoNegative xX φ₂]
-    | φ₁ ⬝ φ₂ => return .app "negative-in-app" [toMMProof xX, toMMProof φ₁, toMMProof φ₂, ← autoNegative xX φ₁, ← autoNegative xX φ₂] 
-    | ∃∃ x ψ => return .app "negative-in-exists" [toMMProof xX, toMMProof ψ, ← autoNegative xX ψ]
-    | μ X ψ => return .app "negative-in-mu" [toMMProof xX, toMMProof ψ, ← autoNegative xX ψ]
-end 
-
-#eval autoPositive (.inr ⟨0⟩) (.svar ⟨0⟩ ⇒ ⊥ : Pattern Bool) 
-
-variable [DecidableEq 𝕊] 
-
-deriving instance DecidableEq for Pattern 
-
--- def autoSubstitution (target substituent : Pattern 𝕊) (xX : Var) : Option MMProof := do 
---   match target with 
---   | .evar x => 
---     if .inl x == xX then 
---       return .app "substitution-var-same" [toMMProof xX, toMMProof substituent]
---     else 
---       return .app "substitution-var-diff" [toMMProof x, toMMProof substituent, toMMProof xX]
---   | .symbol σ => 
---     return .app "substitution-symbol" [toMMProof σ, toMMProof substituent, toMMProof xX]
---   | ⊥ => 
---     return .app "substitution-bot" [toMMProof (⊥ : Pattern 𝕊), toMMProof substituent, toMMProof xX]
---   | _ => none -- should not happen
 
 
 
-inductive Substitution : Pattern 𝕊 → Pattern 𝕊 → Pattern 𝕊 → Var → Type where 
-| varSame (xX yY : Var) (φ : Pattern 𝕊) (ψ : Pattern 𝕊) : 
-  xX = yY → φ = ψ → Substitution φ yY.toPattern ψ xX
-| varDiff (xX : Var) (φ : Pattern 𝕊) (yY : Var) :
-  xX = yY → Substitution yY.toPattern yY.toPattern φ xX
-| symbol (xX : Var) (φ : Pattern 𝕊) (σ : 𝕊) : 
-  Substitution (.symbol σ) (.symbol σ) φ xX 
-| bot (xX : Var) (φ : Pattern 𝕊) : 
-  Substitution ⊥ ⊥ φ xX 
-| imp (xX : Var) (φ : Pattern 𝕊) (ψ₁ ψ₂ s₁ s₂ : Pattern 𝕊) : 
-  Substitution s₁ ψ₁ φ xX → Substitution s₂ ψ₂ φ xX → Substitution (s₁ ⇒ s₂) (ψ₁ ⇒ ψ₂) φ xX 
-| app (xX : Var) (φ : Pattern 𝕊) (ψ₁ ψ₂ s₁ s₂ : Pattern 𝕊) : 
-  Substitution s₁ ψ₁ φ xX → Substitution s₂ ψ₂ φ xX → Substitution (s₁ ⬝ s₂) (ψ₁ ⬝ ψ₂) φ xX 
 
 
 
--- this is probably way to well-specified in the type and probably a bad idea 
--- will lead to DTT hell.
-def autoSubstitutionEVar (result target substituent : Pattern 𝕊) (x : EVar) : 
-  result = target[x ⇐ᵉ substituent] → Option (Substitution result target substituent (.inl x)) := 
-fun h => do 
-  match target with 
-  | .evar y => 
-    if h' : x = y then 
-      return .varSame (.inl x) (.inl y) _ _ (by rw [h']) (by simp_all)
-    else none 
-  | _ => none -- 
 
+
+
+
+
+
+
+
+
+section Positivity 
+
+  def Pattern.isVar (φ : Pattern 𝕊) (xX : Var) : Bool := 
+    match xX with 
+    | .inl x => φ.isEvar x 
+    | .inr X => φ.isSvar X 
+
+  mutual 
+    inductive Positive (xX : Var) : Pattern 𝕊 → Type where 
+    | disjoint (φ) : ¬φ.isVar xX → Positive xX φ
+    | var (yY : Var) (φ) : Positive xX φ
+    | symbol (σ : 𝕊) : Positive xX (.symbol σ)
+    | bot : Positive xX ⊥
+    | app (φ₁ φ₂ : Pattern 𝕊) : Positive xX φ₁ → Positive xX φ₂ → Positive xX (φ₁ ⬝ φ₂)
+    | imp (φ₁ φ₂ : Pattern 𝕊) : Negative xX φ₁ → Positive xX φ₂ → Positive xX (φ₁ ⇒ φ₂)
+    | exist (x : EVar) (φ : Pattern 𝕊) : Positive xX φ → Positive xX (∃∃ x φ)
+    | mu (X : SVar) (φ : Pattern 𝕊) : Positive xX φ → Positive xX (μ X φ)
+
+    inductive Negative (xX : Var) : Pattern 𝕊 → Type where 
+    | disjoint (φ) : ¬φ.isVar xX → Negative xX φ
+    | var (yY : Var) (φ) : xX ≠ yY → Negative xX φ
+    | symbol (σ : 𝕊) : Negative xX (.symbol σ)
+    | bot : Negative xX ⊥
+    | app (φ₁ φ₂ : Pattern 𝕊) : Negative xX φ₁ → Negative xX φ₂ → Negative xX (φ₁ ⬝ φ₂)
+    | imp (φ₁ φ₂ : Pattern 𝕊) : Positive xX φ₁ → Negative xX φ₂ → Negative xX (φ₁ ⇒ φ₂)
+    | exist (x : EVar) (φ : Pattern 𝕊) : Negative xX φ → Negative xX (∃∃ x φ)
+    | mu (X : SVar) (φ : Pattern 𝕊) : Negative xX φ → Negative xX (μ X φ)
+  end 
+
+    mutual /- `autoPositive` `autoNegative`-/
+    -- these are not partial, but I don't care about their termination for the time being 
+    partial def autoPositive (xX : Var) (φ : Pattern 𝕊) : Option (Positive xX φ) := do 
+      if h : ¬φ.isVar xX then 
+        return .disjoint φ h
+      else match φ with 
+      -- | .evar x => return .app "positive-in-var" [toMMProof xX, toMMProof x] 
+      | .evar x => return .var (.inl x) (.evar x)
+      | .svar X => return .var (.inr X) (.svar X)
+      | .symbol σ => return .symbol σ
+      | ⊥ => return .bot 
+      | φ₁ ⇒ φ₂ => return .imp φ₁ φ₂ (← autoNegative xX φ₁) (← autoPositive xX φ₂)
+      | φ₁ ⬝ φ₂ => return .app φ₁ φ₂ (← autoPositive xX φ₁) (← autoPositive xX φ₂)
+      | ∃∃ x ψ => return .exist x ψ (← autoPositive xX ψ) 
+      | μ X ψ => return .mu X ψ (← autoPositive xX ψ)
+
+    partial def autoNegative (xX : Var) (φ : Pattern 𝕊) : Option (Negative xX φ) := do 
+      if h : ¬φ.isVar xX then 
+        return .disjoint φ h
+      else match φ with 
+      | .evar x => 
+        if h' : xX ≠ .inl x then 
+          return .var (.inl x) (.evar x) h' 
+        else none 
+      | .svar X => 
+        if h' : xX ≠ .inr X then 
+          return .var (.inr X) (.svar X) h'
+        else none 
+      | .symbol σ => return .symbol σ
+      | ⊥ => return .bot 
+      | φ₁ ⇒ φ₂ => return .imp φ₁ φ₂ (← autoPositive xX φ₁) (← autoNegative xX φ₂)
+      | φ₁ ⬝ φ₂ => return .app φ₁ φ₂ (← autoNegative xX φ₁) (← autoNegative xX φ₂)
+      | ∃∃ x ψ => return .exist x ψ (← autoNegative xX ψ) 
+      | μ X ψ => return .mu X ψ (← autoNegative xX ψ)
+  end 
+
+  mutual 
+    protected partial def Positive.toMMProof {xX : Var} {φ : Pattern 𝕊} : Positive xX φ → MMProof 
+      | .disjoint φ _ => .app "positive-disjoint" [toMMProof xX, toMMProof φ]
+      | .var yY φ => .app "positive-in-var" [toMMProof xX, toMMProof yY]
+      | .symbol σ => .app "positive-in-symbol" [toMMProof xX, toMMProof σ]
+      | .bot => .app "positive-in-symbol" [toMMProof xX]
+      | .imp φ₁ φ₂ neg₁ pos₂ => .app "positive-in-imp" [toMMProof xX, toMMProof φ₁, toMMProof φ₂, neg₁.toMMProof, pos₂.toMMProof]
+      | .app φ₁ φ₂ pos₁ pos₂ => .app "positive-in-app" [toMMProof xX, toMMProof φ₁, toMMProof φ₂, pos₁.toMMProof, pos₂.toMMProof]
+      | .exist x φ pos => .app "positive-in-exists" [toMMProof xX, toMMProof φ, pos.toMMProof]
+      | .mu X φ pos => .app "positive-in-mu" [toMMProof xX, toMMProof φ, pos.toMMProof]
+
+    protected partial def Negative.toMMProof {xX : Var} {φ : Pattern 𝕊} : Negative xX φ → MMProof
+      | .disjoint φ _ => .app "positive-disjoint" [toMMProof xX, toMMProof φ]
+      | .var yY φ _ => .app "positive-in-var" [toMMProof xX, toMMProof yY]
+      | .symbol σ => .app "positive-in-symbol" [toMMProof xX, toMMProof σ]
+      | .bot => .app "positive-in-symbol" [toMMProof xX]
+      | .imp φ₁ φ₂ pos₁ neg₂ => .app "positive-in-imp" [toMMProof xX, toMMProof φ₁, toMMProof φ₂, pos₁.toMMProof, neg₂.toMMProof]
+      | .app φ₁ φ₂ neg₁ neg₂ => .app "positive-in-app" [toMMProof xX, toMMProof φ₁, toMMProof φ₂, neg₁.toMMProof, neg₂.toMMProof]
+      | .exist x φ pos => .app "positive-in-exists" [toMMProof xX, toMMProof x, toMMProof φ, pos.toMMProof]
+      | .mu X φ pos => .app "positive-in-mu" [toMMProof xX, toMMProof X, toMMProof φ, pos.toMMProof] 
+  end 
+
+  instance {xX : Var} {φ : Pattern 𝕊} : ToMMProof <| Positive xX φ where 
+    toMMProof := Positive.toMMProof 
+  
+  instance {xX : Var} {φ : Pattern 𝕊} : ToMMProof <| Negative xX φ where 
+    toMMProof := Negative.toMMProof 
+
+  mutual /- `autoPositive` `autoNegative`-/
+    -- these are not partial, but I don't care about their termination for the time being 
+    partial def autoPositiveDirect (xX : Var) (φ : Pattern 𝕊) : Option MMProof := do 
+      if φ.isVar xX then 
+        return .app "positive-disjoint" [toMMProof xX, toMMProof φ]
+      else match φ with 
+      | .evar x => return .app "positive-in-var" [toMMProof xX, toMMProof x] 
+      | .svar X => return .app "positive-in-var" [toMMProof xX, toMMProof X]
+      | .symbol σ => return .app "positive-in-symbol" [toMMProof xX, toMMProof σ]
+      | ⊥ => return .app "positive-in-bot" [toMMProof xX]
+      | φ₁ ⇒ φ₂ => return .app "positive-in-imp" [toMMProof xX, toMMProof φ₁, toMMProof φ₂, ← autoNegativeDirect xX φ₁, ← autoPositiveDirect xX φ₂]
+      | φ₁ ⬝ φ₂ => return .app "positive-in-app" [toMMProof xX, toMMProof φ₁, toMMProof φ₂, ← autoPositiveDirect xX φ₁, ← autoPositiveDirect xX φ₂] 
+      | ∃∃ x ψ => return .app "positive-in-exists" [toMMProof xX, toMMProof ψ, ← autoPositiveDirect xX ψ]
+      | μ X ψ => return .app "positive-in-mu" [toMMProof xX, toMMProof ψ, ← autoPositiveDirect xX ψ]
+
+    partial def autoNegativeDirect (xX : Var) (φ : Pattern 𝕊) : Option MMProof := do 
+      if φ.isVar xX then 
+        return .app "negative-disjoint" [toMMProof xX, toMMProof φ]
+      else match φ with 
+      | .evar x => 
+        if xX != .inl x then 
+          return .app "negative-in-var" [toMMProof xX, toMMProof x] 
+        else none -- this I think is needed to match the MM definition, but evars should never be negative, the notion does not exist for them
+      | .svar X => 
+        if xX != .inr X then 
+          return .app "negative-in-var" [toMMProof xX, toMMProof X]
+        else none 
+      | .symbol σ => return .app "negative-in-symbol" [toMMProof xX, toMMProof σ]
+      | ⊥ => return .app "negative-in-bot" [toMMProof xX]
+      | φ₁ ⇒ φ₂ => return .app "negative-in-imp" [toMMProof xX, toMMProof φ₁, toMMProof φ₂, ← autoPositiveDirect xX φ₁, ← autoNegativeDirect xX φ₂]
+      | φ₁ ⬝ φ₂ => return .app "negative-in-app" [toMMProof xX, toMMProof φ₁, toMMProof φ₂, ← autoNegativeDirect xX φ₁, ← autoNegativeDirect xX φ₂] 
+      | ∃∃ x ψ => return .app "negative-in-exists" [toMMProof xX, toMMProof ψ, ← autoNegativeDirect xX ψ]
+      | μ X ψ => return .app "negative-in-mu" [toMMProof xX, toMMProof ψ, ← autoNegativeDirect xX ψ]
+  end 
+
+end Positivity 
+
+  variable [DecidableEq 𝕊] 
+
+  deriving instance DecidableEq for Pattern 
+
+  /-- `autoSubstitutionDirect` target substituent xX returns a MM proof that `target[xX ⇐ substituent]` is the `#Substitution` of `xX` by `substituent` in `target` -/
+
+
+
+  -- inductive Substitution : Pattern 𝕊 → Pattern 𝕊 → Pattern 𝕊 → Var → Type where 
+  -- | varSame (xX yY : Var) (φ : Pattern 𝕊) (ψ : Pattern 𝕊) : 
+  --   xX = yY → φ = ψ → Substitution φ yY.toPattern ψ xX
+  -- | varDiff (xX : Var) (φ : Pattern 𝕊) (yY : Var) :
+  --   xX ≠ yY → Substitution yY.toPattern yY.toPattern φ xX
+  -- | symbol (xX : Var) (φ : Pattern 𝕊) (σ : 𝕊) : 
+  --   Substitution (.symbol σ) (.symbol σ) φ xX 
+  -- | bot (xX : Var) (φ : Pattern 𝕊) : 
+  --   Substitution ⊥ ⊥ φ xX 
+  -- | imp (xX : Var) (φ : Pattern 𝕊) (ψ₁ ψ₂ s₁ s₂ : Pattern 𝕊) : 
+  --   Substitution s₁ ψ₁ φ xX → Substitution s₂ ψ₂ φ xX → Substitution (s₁ ⇒ s₂) (ψ₁ ⇒ ψ₂) φ xX 
+  -- | app (xX : Var) (φ : Pattern 𝕊) (ψ₁ ψ₂ s₁ s₂ : Pattern 𝕊) : 
+  --   Substitution s₁ ψ₁ φ xX → Substitution s₂ ψ₂ φ xX → Substitution (s₁ ⬝ s₂) (ψ₁ ⬝ ψ₂) φ xX 
+
+
+
+
+  -- this is probably way to well-specified in the type and probably a bad idea 
+  -- will lead to DTT hell.
+  -- def autoSubstitutionEVar (result target substituent : Pattern 𝕊) (x : EVar) : 
+  --   result = target[x ⇐ᵉ substituent] → Option (Substitution result target substituent (.inl x)) := 
+  -- fun h => do 
+  --   match target with 
+  --   | .evar y => 
+  --     if h' : x = y then 
+  --       return .varSame (.inl x) (.inl y) _ _ (by rw [h']) (by simp_all)
+  --     else 
+  --       none 
+  --   | φ ⇒ ψ => 
+  --     return .imp (.inl x) substituent φ ψ _ _ _ _
+  --   | _ => none -- 
