@@ -31,14 +31,7 @@ structure MLTheorem where
 def isOfTypeMLProof : Expr → MetaM Bool := 
   fun e => do return Expr.isAppOf (← inferType e) `ML.Proof
 
-/--
-  Returns the definition of `declName` or throws an error if `declName` is not a definition.
--/
-def getDefnValue (declName : Name) : MetaM Expr := do 
-  match (← getEnv).find? declName with 
-  | ConstantInfo.defnInfo { value := v, .. } => return v 
-  | none => throwError m! "Unknown identifier {declName}"
-  | _ => throwError m! "{declName} is not a definition"
+
 
 
 
@@ -82,17 +75,24 @@ def MLTheorem.toIRTheorem (thm : MLTheorem) : MetaM IRTheorem := do
 
 #eval show MetaM _ from do  
   let mlThm ← parseMLTheorem ``Tests.modusPonensTest4
+  IO.println <| mlThm.proof
   let irThm : IRTheorem ← mlThm.toIRTheorem
   let mmThm : MMTheorem := irThm.toMMTheorem
   let mmFile : MMFile := .fromMMTheorems [mmThm]
   IO.println <| mmFile.toMM
 
 
-def mainCore : MetaM Unit := do 
+def exampleExtraction : MetaM Unit := do 
   let mlThm ← parseMLTheorem ``Tests.modusPonensTest4
   let irThm ← mlThm.toIRTheorem 
   let mmThm := irThm.toMMTheorem 
   let mmFile : MMFile := .fromMMTheorems [mmThm]
-  mmFile.writeToFile "first-try.mm"
+  mmFile.writeToFile "example-file.mm"
 
-#eval mainCore
+#eval exampleExtraction
+
+
+#eval show MetaM _ from do
+  let stx : Syntax ← `((1 + 2 : Nat)) 
+  let e := elabTermAndSynthesize stx none 
+  return e

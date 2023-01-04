@@ -15,7 +15,7 @@ namespace ML.Meta
   * `essential`.
 -/
 inductive HypKind where 
-| floating | essential | assumption
+| floating | essential | assumption 
   deriving Inhabited, Repr, DecidableEq
 
 instance : ToString HypKind where 
@@ -67,6 +67,7 @@ instance : ToString Hypothesis := ⟨Hypothesis.toMM⟩
   * `metavars` - the list of mentioned necessary variables 
   * `floatings` - the floating assumptions on those variables 
   * `essentials` - the essential assumptions of the theorem
+  * `assumption` - the axiom (i.e. `$a` statements) required by the theorem 
 -/
 structure Env where 
   metavars : List String := [] -- should have no duplicates 
@@ -128,7 +129,7 @@ namespace Env
   def addSetVar (env : Env) (name : String) : Env := 
     env 
       |>.addMetavar name 
-      |>.addFloating s!"{name}-is-element-var" s!"#ElementVariable {name}"
+      |>.addFloating s!"{name}-is-element-var" s!"#SetVariable {name}"
 
   def addSymbol (env : Env) (name : String) : Env := 
     env 
@@ -153,11 +154,13 @@ end Env
 
 inductive MMProof where 
 | app : String → List MMProof → MMProof 
+| incomplete 
   deriving BEq, Inhabited, Repr 
 
 partial def MMProof.toMM (proof : MMProof) : String := 
   match proof with 
-  | ⟨head, args⟩ => joinWith (args.map MMProof.toMM) " " ++ " " ++ head
+  | app head args => joinWith (args.map MMProof.toMM) " " ++ " " ++ head
+  | incomplete => "?"
 
 structure MMTheorem where 
   label : String 
@@ -176,7 +179,7 @@ namespace MMTheorem
     let ⟨beginScope, endScope⟩ : String × String := 
       if essentialsStr.length > 0 then ⟨"${", "$}"⟩ else ⟨"", ""⟩
     
-    s! "$v {metavarsStr} $v." ++ "\n" 
+    (if !prf.env.metavars.isEmpty then s!"$v {metavarsStr} $." else "") ++ "\n" 
       ++ floatingsStr ++ ⟨[endl]⟩
       ++ beginScope 
       ++ essentialsStr ++ ⟨[endl]⟩
@@ -197,9 +200,9 @@ structure MMFile where
 
 namespace MMFile 
 
-  def fromMMTheorems (theorems : List MMTheorem) : MMFile :=
+  def fromMMTheorems (theorems : List MMTheorem) (includes : List System.FilePath := []) : MMFile :=
     {
-      includes := [⟨"mm/matching-logic.mm"⟩]
+      includes := includes
       theorems := theorems
     }
 

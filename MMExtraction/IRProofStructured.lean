@@ -99,6 +99,7 @@ protected def IRProof.toString (prf : IRProof) : String :=
 
 instance : ToString IRProof := ⟨IRProof.toString⟩
 
+-- f e₁   eₙ 
 partial def IRProof.fromExpr! (e : Expr) (reducing : Bool := true) : MetaM IRProof := do 
   let e ← if reducing then whnf e else pure e 
   let declName := e.getAppFn.constName! 

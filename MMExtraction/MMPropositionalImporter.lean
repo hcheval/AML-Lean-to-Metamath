@@ -392,7 +392,6 @@ def main : IO Unit := do
   let source ← IO.FS.readFile path 
   IO.println <| repr <| parseDB source |>.toList.map id
 
-#eval main 
 
 
 

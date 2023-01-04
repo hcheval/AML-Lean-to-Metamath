@@ -20,3 +20,15 @@ def isNotDependentForall (e : Expr) : Bool := !(e.isForall && !e.isArrow)
 def _root_.Option.get!! {α : Type _} [Inhabited α] : Option α → α 
 | some x => x 
 | none => panic! "Option.get!! got none value "
+
+
+/--
+  Returns the definition of `declName` or throws an error if `declName` is not a definition.
+-/
+def getDefnValue (declName : Name) : MetaM Expr := do 
+  match (← getEnv).find? declName with 
+  | ConstantInfo.defnInfo { value := v, .. } => return v 
+  | none => throwError m! "Unknown identifier {declName}"
+  | _ => throwError m! "{declName} is not a definition"
+
+

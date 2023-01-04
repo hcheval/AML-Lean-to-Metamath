@@ -12,3 +12,8 @@ MMExtraction/MMPropositionalImporterData.lean
 MMExtraction/MMPropositionalImporter2.lean
 MMExtraction/Metavar.lean
 MMExtraction/ExporterGeneric2.lean
+/matching-logic.mm
+/matching-logic-prelude.mm
+/matching-logic-propositional.mm
+/ml
+/ml/*

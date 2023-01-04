@@ -274,7 +274,7 @@ def IRPatt.createEnv (patt : IRPatt) : Env :=
       |>.addMetavar freshMetavar
       |>.addEssential freshMetavar s! "#Substitution {freshMetavar} {e₁} {e₂} {e₃}" 
       |>.addFloating "" s! "{freshMetavar}-is-pattern" 
-  | .wrong _ => { containsWrong := true }
+  | .wrong _ => { }
 
 
 def isCtorOfFamily (ctorName : Name) (type : Name) : MetaM Bool := do 

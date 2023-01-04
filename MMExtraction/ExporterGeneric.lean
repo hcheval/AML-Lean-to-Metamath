@@ -1,3 +1,8 @@
+/-
+  This is an alternative experimental design for the 
+  metaprogramming based extractor.
+-/
+
 import Lean 
 import MatchingLogic.Proof 
 -- import MMExtraction.MMBuilder
@@ -339,6 +344,5 @@ def test (declName : Name) : MetaM Unit := do
   -- IO.println exported.claim    
   IO.println exported.toMM  
 
-#eval test ``existQuanTest1
 
 
