@@ -9,7 +9,7 @@ deriving instance Repr for SVar
 def Var := EVar ⊕ SVar 
   deriving DecidableEq, Inhabited, Repr 
 
-def Var.toPattern : Var → Pattern 𝕊 
+def Var.toPattern (𝕊 : Type) : Var → Pattern 𝕊 
 | .inl x => .evar x 
 | .inr X => .svar X 
 

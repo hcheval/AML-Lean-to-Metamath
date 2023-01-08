@@ -26,6 +26,9 @@ instance : ToString HypKind where
 
 abbrev Claim := String 
 
+def Label := String 
+  deriving DecidableEq, Inhabited, Repr, ToString 
+
 /--
   A Metamath hypothesis made of
   * `label : String` 
@@ -35,7 +38,7 @@ abbrev Claim := String
   `"label $kind stmt $."` where `kind` will be wither `e` or `f`.
 -/
 structure Hypothesis where 
-  label : String 
+  label : Label 
   stmt : Claim 
   kind : HypKind
   deriving Inhabited, Repr, DecidableEq
@@ -62,6 +65,13 @@ def Hypothesis.toMM (hyp : Hypothesis) : String :=
 
 instance : ToString Hypothesis := ⟨Hypothesis.toMM⟩
 
+structure Metavar where 
+  name : String 
+  floating : Hypothesis 
+  deriving DecidableEq, Inhabited, Repr 
+
+def Metavar.equalNames : Metavar → Metavar → Bool := (name . == name .)
+
 /--
   Holds the environment of a Metamath theorem and its proof, containing:
   * `metavars` - the list of mentioned necessary variables 
@@ -70,48 +80,40 @@ instance : ToString Hypothesis := ⟨Hypothesis.toMM⟩
   * `assumption` - the axiom (i.e. `$a` statements) required by the theorem 
 -/
 structure Env where 
-  metavars : List String := [] -- should have no duplicates 
-  floatings : List Hypothesis := [] 
+  metavars : List Metavar := []
   essentials : List Hypothesis := []
   assumptions : List Hypothesis := []
   deriving DecidableEq, Inhabited, Repr
 
+
+
 namespace Env 
 
-  def merge (env₁ env₂ : Env) : Env := 
-    {
-      metavars := env₁.metavars ++ env₂.metavars 
-      floatings := env₁.floatings ++ env₂.floatings 
-      essentials := env₁.essentials ++ env₂.essentials
-    }
 
-  instance : Append Env := ⟨merge⟩
+
+
 
   protected def toString (env : Env) : String := 
-    s! "metavars: {env.metavars} {endl}" ++ 
-    s! "floating: {env.floatings} {endl}" ++ 
+    s! "metavars: {repr env.metavars} {endl}" ++ 
     s! "essential: {env.essentials} {endl}" ++ 
     s! "assumtpions: {env.assumptions} {endl}" 
 
   instance : ToString Env := ⟨Env.toString⟩
 
-  def addMetavar (env : Env) (mv : String) : Env := 
-    { env with metavars := mv :: env.metavars }
-
-  def addFloatingHyp (env : Env) (hyp : Hypothesis) : Env := 
-    { env with floatings := hyp :: env.floatings }
-
-  def addFloating (env : Env) (label : String) (stmt : Claim) : Env := 
-    { env with floatings := ⟨label, stmt, .floating⟩ :: env.floatings}
+  def addMetavar (env : Env) (mv : Metavar) : Env := 
+    { env with metavars := env.metavars.insertP (Metavar.equalNames) mv }
 
   def addEssentialHyp (env : Env) (hyp : Hypothesis) : Env := 
-    { env with essentials := hyp :: env.essentials }
+    { env with essentials := env.essentials.insert hyp }
 
   def addEssential (env : Env) (label : String) (stmt : Claim) : Env := 
-    { env with essentials := ⟨label, stmt, .essential⟩ :: env.essentials}
+    { env with essentials := env.essentials.insert ⟨label, stmt, .essential⟩}
 
   def addAssumption (env : Env) (label : String) (stmt : Claim) : Env := 
-    { env with assumptions := .mkAssumption label stmt :: env.assumptions }
+    { env with assumptions := env.assumptions.insert <| .mkAssumption label stmt }
+
+  def addAssumptionHyp (env : Env) (hyp : Hypothesis) : Env := 
+    { env with essentials := env.assumptions.insert hyp }
 
   def addEssentials (env : Env) (essentials : List (String × String)) : Env := Id.run do 
     -- dirty 
@@ -120,34 +122,44 @@ namespace Env
       newenv ← newenv.addEssential essential.1 essential.2
     newenv
 
+  def addVar (env : Env) (name : String) : Env :=
+    env.addMetavar ⟨name, ⟨s!"{name}-is-var", s! "#Variable {name}", .floating⟩⟩
 
   def addElementVar (env : Env) (name : String) : Env := 
-    env 
-      |>.addMetavar name 
-      |>.addFloating s!"{name}-is-element-var" s!"#ElementVariable {name}"
+    env.addMetavar ⟨name, s!"{name}-is-element-var", s!"#ElementVariable {name}", .floating⟩ 
 
   def addSetVar (env : Env) (name : String) : Env := 
-    env 
-      |>.addMetavar name 
-      |>.addFloating s!"{name}-is-element-var" s!"#SetVariable {name}"
+    env.addMetavar ⟨name, s!"{name}-is-element-var", s!"#SetVariable {name}", .floating⟩
 
   def addSymbol (env : Env) (name : String) : Env := 
-    env 
-      |>.addMetavar name 
-      |>.addFloating s!"{name}-is-symbol" s!"#Symbol {name}"
+    env.addMetavar ⟨name, ⟨s!"{name}-is-symbol", s!"#Symbol {name}", .floating⟩⟩ 
 
-  def metavarIsPattern (env : Env) (mv : String) : Bool := 
-    Option.isSome <| env.floatings.find? <| fun hyp => hyp.stmt = s! "{mv}-is-pattern"
+  def metavarIsPattern (mv : Metavar) : Bool := 
+    mv.floating.stmt = s!"{mv.name}-is-pattern"
+
+  
+  def merge (env₁ env₂ : Env) : Env := Id.run do 
+    let mut result : Env := env₁ 
+    for mv in env₂.metavars do 
+      result := result.addMetavar mv
+    for essential in env₂.essentials do 
+      result := result.addEssentialHyp essential
+    for assumption in env₂.assumptions do 
+      result := result.addAssumptionHyp assumption 
+    return result 
+    
+  instance : Append Env := ⟨merge⟩
+
 
   -- TODO: something less stupid
   def eraseDup (env : Env) : Env := 
     { env with 
       metavars := env.metavars.eraseDup 
-      floatings := env.floatings.eraseDup 
       essentials := env.essentials.eraseDup 
+      assumptions := env.assumptions.eraseDup 
     }
 
-  def containsMetavar (env : Env) : String → Bool := 
+  def containsMetavar (env : Env) : Metavar → Bool := 
     env.metavars.contains 
 
 end Env 
@@ -162,33 +174,46 @@ partial def MMProof.toMM (proof : MMProof) : String :=
   | app head args => joinWith (args.map MMProof.toMM) " " ++ " " ++ head
   | incomplete => "?"
 
+inductive MMTheoremKind where
+  | logical | positive | negative | fresh | substitution | context 
+  deriving BEq, Inhabited, Repr 
+
 structure MMTheorem where 
   label : String 
   env : Env 
   proof : MMProof 
   conclusion : String 
+  kind : MMTheoremKind 
   deriving BEq, Inhabited, Repr
 
 namespace MMTheorem 
 
-  def toMM (prf : MMTheorem) : String := 
-    let metavarsStr : String := prf.env.metavars.foldl (init := "") (.++" "++.)
-    let floatingsStr := prf.env.floatings.map Hypothesis.toMM |>.foldl (init := "") (.++⟨[endl]⟩++.)
-    let essentialsStr := prf.env.essentials.map Hypothesis.toMM |>.foldl (init := "") (.++⟨[endl]⟩++.)
+  def toMM (thm : MMTheorem) : String := 
+    let metavarsStr : String := thm.env.metavars.map Metavar.name |>.foldl (init := "") (.++" "++.)
+    let floatingsStr := thm.env.metavars.map Metavar.floating |>.map Hypothesis.toMM |>.foldl (init := "") (.++⟨[endl]⟩++.)
+    let essentialsStr := thm.env.essentials.map Hypothesis.toMM |>.foldl (init := "") (.++⟨[endl]⟩++.)
     
     let ⟨beginScope, endScope⟩ : String × String := 
       if essentialsStr.length > 0 then ⟨"${", "$}"⟩ else ⟨"", ""⟩
     
-    (if !prf.env.metavars.isEmpty then s!"$v {metavarsStr} $." else "") ++ "\n" 
+    let leading := match thm.kind with 
+      | .logical => "|-"
+      | .positive => "#Positive"
+      | .negative => "#Negative"
+      | .fresh => "#Fresh"
+      | .substitution => "#Substitution"
+      | .context => "#ApplicationContext"
+
+    (if !thm.env.metavars.isEmpty then s!"$v {metavarsStr} $." ++ "\n" ++ s!"$d {metavarsStr} $." else "") ++ "\n" 
       ++ floatingsStr ++ ⟨[endl]⟩
       ++ beginScope 
       ++ essentialsStr ++ ⟨[endl]⟩
-      ++ prf.label ++ " "
-      ++ s! "$p |- {toString prf.conclusion} $= {prf.proof.toMM} $." ++ ⟨[endl]⟩
+      ++ thm.label ++ " "
+      ++ s! "$p {leading} {toString thm.conclusion} $= {thm.proof.toMM} $." ++ ⟨[endl]⟩
       ++ endScope
 
-  def containsMetavar (prf : MMTheorem) : String → Bool := 
-    prf.env.containsMetavar
+  def containsMetavar (thm : MMTheorem) : Metavar → Bool := 
+    thm.env.containsMetavar
 
 end MMTheorem
 

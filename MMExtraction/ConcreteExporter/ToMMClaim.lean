@@ -1,4 +1,5 @@
 import MatchingLogic 
+import MMExtraction.ConcreteExporter.Var 
 
 namespace ML
 
@@ -17,6 +18,12 @@ protected def SVar.toMMClaim : SVar → String
   | ⟨idx⟩ => s! "_X{idx}"
 
 instance : ToMMClaim SVar := ⟨SVar.toMMClaim⟩
+
+protected def Var.toMMClaim : Var → String 
+  | .inl x => toMMClaim x 
+  | .inr X => toMMClaim X 
+
+instance : ToMMClaim Var := ⟨Var.toMMClaim⟩
 
 section variable {𝕊 : Type} [ToMMClaim 𝕊]
 

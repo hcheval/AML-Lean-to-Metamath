@@ -32,3 +32,7 @@ def getDefnValue (declName : Name) : MetaM Expr := do
   | _ => throwError m! "{declName} is not a definition"
 
 
+@[inline] protected def _root_.List.insertP {α : Type _} (p : α → α → Bool) (a : α) (l : List α) : List α :=
+  if l.find? (p a) |>.isSome then l else a :: l
+
+@[inline] protected def _root_.List.unionP {α : Type _} (p : α → α → Bool) (l₁ l₂ : List α)  : List α := List.foldr (.insertP p) l₂ l₁

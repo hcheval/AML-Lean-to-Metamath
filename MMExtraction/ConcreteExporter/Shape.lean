@@ -51,3 +51,10 @@ def axiomDefinedness : Shape Definedness :=
 
 
 
+/-
+
+  imp-refl : φ ⇒ φ 
+  φ ⇒ ψ ⇒ φ 
+
+  ⊥ ⇒ ⊥ 
+-/

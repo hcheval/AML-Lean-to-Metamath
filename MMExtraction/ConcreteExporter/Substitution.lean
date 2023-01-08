@@ -86,18 +86,18 @@ do
   meaning the more at the beginning of the `MMProof.app` arguments
 -/
 
--- protected def Substitution.toMMProof : Substitution 𝕊 → MMProof 
---   | varSame var substituent => 
---     .app "substitution-var-same" [toMMProof substituent, toMMProof var]
---   | varDiff var substituent yY => 
---     .app "substitution-var-diff" [toMMProof substituent, toMMProof var, toMMProof yY]
---   | symbol var substituent σ => 
---     .app "substitution-var-symbol" [toMMProof substituent, toMMProof var, toMMProof σ]
---   | bot var substituent => 
---     .app "substitution-bot" [toMMProof substituent, toMMProof var]
---   | imp var substituent φ₁ φ₂ s₁ s₂ => 
---     .app "substitution-imp" [toMMProof substituent, toMMProof (φ₁[var ⇐ substituent]), toMMProof (φ₂[var ⇐ substituent]), toMMProof φ₁, toMMProof φ₂, toMMProof var]
---   | app var substituent φ₁ φ₂ s₁ s₂ => 
---     .app "substitution-app" [toMMProof substituent, toMMProof (φ₁[var ⇐ substituent]), toMMProof (φ₂[var ⇐ substituent]), toMMProof φ₁, toMMProof φ₂, toMMProof var]
---   | existShadowed substituent x φ => 
---     .app "substitution-exists-shadowed" [toMMProof substituent, toMMProof φ, toMMProof x]
+protected def Substitution.toMMProof : Substitution 𝕊 → MMProof 
+  | varSame var substituent => 
+    .app "substitution-var-same" [toMMProof substituent, toMMProof var]
+  | varDiff var substituent yY => 
+    .app "substitution-var-diff" [toMMProof substituent, toMMProof var, toMMProof yY]
+  | symbol var substituent σ => 
+    .app "substitution-var-symbol" [toMMProof substituent, toMMProof var, toMMProof σ]
+  | bot var substituent => 
+    .app "substitution-bot" [toMMProof substituent, toMMProof var]
+  | imp var substituent φ₁ φ₂ s₁ s₂ => 
+    .app "substitution-imp" [toMMProof substituent, toMMProof (φ₁[var ⇐ substituent]), toMMProof (φ₂[var ⇐ substituent]), toMMProof φ₁, toMMProof φ₂, toMMProof var]
+  | app var substituent φ₁ φ₂ s₁ s₂ => 
+    .app "substitution-app" [toMMProof substituent, toMMProof (φ₁[var ⇐ substituent]), toMMProof (φ₂[var ⇐ substituent]), toMMProof φ₁, toMMProof φ₂, toMMProof var]
+  | existShadowed substituent x φ =>   
+    .app "substitution-exists-shadowed" [toMMProof substituent, toMMProof φ, toMMProof x]

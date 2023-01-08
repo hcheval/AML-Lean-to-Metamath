@@ -17,3 +17,5 @@ def Pattern.toLabel (φ : Pattern 𝕊) (labelPrefix := "__") : String :=
     | μ X φ₁ => s!"LP-mu-{toMMClaim X}-{toLabelCore φ₁}-RP" 
     | symbol σ => s!"{toMMClaim σ}"
   s!"{labelPrefix}{toLabelCore φ}"
+
+

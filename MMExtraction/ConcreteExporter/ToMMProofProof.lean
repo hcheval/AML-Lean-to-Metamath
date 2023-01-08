@@ -4,9 +4,10 @@ import MMExtraction.ConcreteExporter.ToMMClaim
 import MMExtraction.ConcreteExporter.ToMMProof 
 import MMExtraction.ConcreteExporter.Shape 
 import MMExtraction.ConcreteExporter.Var
-import MMExtraction.ConcreteExporter.Freshness 
-import MMExtraction.ConcreteExporter.Positivity 
+-- import MMExtraction.ConcreteExporter.Freshness 
+-- import MMExtraction.ConcreteExporter.Positivity 
 import MMExtraction.ConcreteExporter.ToLabel 
+import MMExtraction.ConcreteExporter.MLITP
 
 set_option autoImplicit false 
 set_option linter.unusedVariables.patternVars false
@@ -14,6 +15,8 @@ set_option linter.unusedVariables.patternVars false
 namespace ML 
 
 open ML.Meta
+
+
 
 variable {𝕊 : Type} [DecidableEq 𝕊] [ToMMClaim 𝕊]
 
@@ -37,11 +40,28 @@ do
         break
     result
   | @modusPonens _ _ φ ψ h₁ h₂ => 
-    return .app "proof-rule-mp" [φ.toMMProof, ψ.toMMProof, ← h₁.toMMProof, ← h₂.toMMProof] 
+    return .app "proof-rule-mp" [
+      φ.toMMProof, 
+      ψ.toMMProof, 
+      ← h₁.toMMProof, 
+      ← h₂.toMMProof 
+    ] 
   | @existQuan _ _ φ x y sfi => 
-    return .app "proof-rule-exists" [φ[x ⇐ᵉ y].toMMProof, φ.toMMProof, x.toMMProof, y.toMMProof /- here a proof of substitution -/]
+    return .app "proof-rule-exists" [
+      φ[x ⇐ᵉ y].toMMProof, 
+      φ.toMMProof, 
+      x.toMMProof, 
+      y.toMMProof, 
+      .app (MLITP.Statement.substitution (.inl x) (.evar y) φ |>.toLabel) []  
+    ]
   | @existGen _ _ φ ψ x nfv h => 
-    return .app "proof-rule-gen" [φ.toMMProof, ψ.toMMProof, x.toMMProof, (← autoFresh (.inl x) ψ).toMMProof, ← h.toMMProof]
+    return .app "proof-rule-gen" [
+      φ.toMMProof, 
+      ψ.toMMProof, 
+      x.toMMProof, 
+      .app (MLITP.Statement.fresh (.inl x) ψ |>.toLabel) [], 
+      ← h.toMMProof
+    ]
   | @existence _ _ x => 
     return .app "proof-rule-existence" [x.toMMProof]
   | @propagationBottomLeft _ _ c => 
@@ -63,16 +83,30 @@ do
   | @framingRight _ _ φ ψ χ h => 
     return .app "not-implemented" []
   | @substitution _ _ φ ψ X sfi h => 
-    return .app "proof-rule-set-var-substitution" [φ.toMMProof, ψ.toMMProof, X.toMMProof /- here to insert `sfi`-/ , ← h.toMMProof]
+    return .app "proof-rule-set-var-substitution" [
+      φ.toMMProof, 
+      ψ.toMMProof, 
+      X.toMMProof, 
+      .app (MLITP.Statement.substitution (.inr X) ψ φ |>.toLabel) [],
+      ← h.toMMProof
+    ]
   | @prefixpoint _ _ φ X pos sfi => 
-    return .app "proof-rule-prefixpoint" [φ.toMMProof, X.toMMProof /- here to insert `sfi`-/ /- pos HACKHACKHACK-/]
+    return .app "proof-rule-prefixpoint" [
+      φ.toMMProof, 
+      X.toMMProof /- here to insert `sfi`-/, 
+      .app (MLITP.Statement.positive (.inr X) φ |>.toLabel) []
+    ]
   | @knasterTarski _ _ φ ψ X sfi h => 
-    return .app "proof-rule-kt" [φ.toMMProof, ψ.toMMProof, X.toMMProof /- here to insert `sfi`-/, ← h.toMMProof]
+    return .app "proof-rule-kt" [
+      φ.toMMProof, 
+      ψ.toMMProof, 
+      X.toMMProof /- here to insert `sfi`-/, 
+      ← h.toMMProof
+    ]
   | @Proof.singleton _ _ C₁ C₂ x φ => 
     return .app "proof-rule-singleton" [/- here to insert C₁ C₂ as proofs-/ x.toMMProof, φ.toMMProof]
 
 -- instance {Γ : Premises 𝕊} {φ : Pattern 𝕊} : ToMMProof <| Proof Γ φ := ⟨Proof.toMMProof⟩
-
 
 
 
@@ -86,11 +120,11 @@ def thm (φ ψ χ : Pattern Empty) : ∅ ⊢ (φ ⇒ ψ) ⇒ (ψ ⇒ χ) ⇒ (φ
   exact h' ∘ h
 
 
-#eval (@Proof.implSelf Empty ∅ ⊥).toMMProof (matchings := Shape.standardPropositional)
+#eval (@Proof.implSelf Empty ∅ ⊥).toMMProof (matchings := Shape.standardPropositional) |>.get!
 
-#eval (@Proof.weakeningDisj Empty ∅ ⊤ ⊥).toMMProof (matchings := Shape.standardPropositional)
+#eval (@Proof.weakeningDisj Empty ∅ ⊤ ⊥).toMMProof (matchings := Shape.standardPropositional) |>.get! 
 
-#eval (@Proof.exFalso Empty ∅ ⊥).toMMProof 
+#eval (@Proof.exFalso Empty ∅ ⊥).toMMProof |>.get!
 
 -- ⊥ ⇒ ⊥       ?φ ⇒ ?φ 
 -- ⊤ ⇒ ⊤       ?φ ⇒ ?φ
