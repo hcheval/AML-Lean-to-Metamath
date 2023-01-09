@@ -15,23 +15,65 @@ set_option linter.unusedVariables.patternVars false
 namespace ML 
 
 open ML.Meta
-
+open MLITP (Statement)
 
 
 variable {𝕊 : Type} [DecidableEq 𝕊] [ToMMClaim 𝕊]
 
+def Proof.statements {Γ : Premises 𝕊} {φ : Pattern 𝕊} (proof : Proof Γ φ)
+  (matchings : List <| Shape 𝕊 := [])
+  : List <| Statement 𝕊 := 
+  if matchings.find? (fun matching => matching φ |>.isSome) |>.isSome
+    then []
+  else match proof with 
+  | @tautology _ _ φ _ => 
+    [.tautology φ]
+  | @premise _ _ φ _ hmem => 
+    []
+  | @modusPonens _ _ φ ψ h₁ h₂ => 
+    .union h₁.statements h₂.statements
+  | @existQuan _ _ φ x y sfi => 
+    [.substitution (.inl x) (.evar y) φ]
+  | @existGen _ _ φ ψ x nfv h => 
+    h.statements.insert <| .fresh (.inl x) ψ 
+  | @existence _ _ x => 
+    []
+  | @propagationBottomLeft _ _ c => 
+    []
+  | @propagationBottomRight _ _ c => 
+    []
+  | @propagationDisjLeft _ _ φ ψ c => 
+    [] 
+  | @propagationDisjRight _ _ φ ψ c => 
+    [] 
+  | @propagationExistLeft _ _ φ x c nfv => 
+    []
+  | @propagationExistRight _ _ φ x c nfv => 
+    []
+  | @framingLeft _ _ φ ψ χ h => 
+    [] 
+  | @framingRight _ _ φ ψ χ h => 
+    []
+  | @substitution _ _ φ ψ X sfi h => 
+    h.statements.insert <| .substitution (.inr X) ψ φ
+  | @prefixpoint _ _ φ X pos sfi => 
+    [.positive (.inr X) φ]
+  | @knasterTarski _ _ φ ψ X sfi h => 
+    h.statements
+  | @Proof.singleton _ _ C₁ C₂ x φ => 
+    []
 
 protected def Proof.toMMProof {Γ : Premises 𝕊} {φ : Pattern 𝕊} (proof : Proof Γ φ)
-  (matchings : List <| Shape 𝕊 := [])
+  (shapes : List <| Shape 𝕊 := [])
   (premiseShapes : List <| Shape 𝕊 := [])
   : Option MMProof := 
 do 
-  for matching in matchings do 
+  for matching in shapes do 
     if let some ⟨parts, label⟩ := matching φ then 
       return .app label <| parts.map fun ⟨_, _, part⟩ => toMMProof part 
   match proof with 
   | @tautology _ _ φ _ => 
-    return .app φ.toLabel []
+    return .app (MLITP.Statement.tautology φ |>.toLabel) []
   | @premise _ _ φ _ hmem => 
     let mut result : Option MMProof := none 
     for matching in premiseShapes do 
@@ -43,8 +85,8 @@ do
     return .app "proof-rule-mp" [
       φ.toMMProof, 
       ψ.toMMProof, 
-      ← h₁.toMMProof, 
-      ← h₂.toMMProof 
+      ← h₂.toMMProof, 
+      ← h₁.toMMProof 
     ] 
   | @existQuan _ _ φ x y sfi => 
     return .app "proof-rule-exists" [
@@ -118,6 +160,9 @@ def thm (φ ψ χ : Pattern Empty) : ∅ ⊢ (φ ⇒ ψ) ⇒ (ψ ⇒ χ) ⇒ (φ
   unfold_tautology!
   intros h h' 
   exact h' ∘ h
+
+#eval thm ⊥ ⊤ ⊥ |>.toMMProof 
+
 
 
 #eval (@Proof.implSelf Empty ∅ ⊥).toMMProof (matchings := Shape.standardPropositional) |>.get!

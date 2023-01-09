@@ -1,9 +1,9 @@
 
 $[ matching-logic.mm $]
 $[ matching-logic-propositional.mm $]
-$v  _x0 $.
-$d  _x0 $.
 
-_x0-is-element-var $f #ElementVariable _x0 $.
 
-__SUBST_____x0____bot_____x0____bot $p #Substitution \bot _x0 \bot _x0 $= ? $.
+
+
+
+__LP-LP-bot-imp-LP-LP-LP-LP-bot-imp-bot-RP-imp-bot-RP-imp-LP-bot-imp-bot-RP-RP-imp-bot-RP-RP-imp-LP-LP-LP-LP-LP-LP-bot-imp-bot-RP-imp-bot-RP-imp-LP-bot-imp-bot-RP-RP-imp-bot-RP-imp-bot-RP-imp-LP-bot-imp-bot-RP-RP-RP $p |- ( \imp ( \imp \bot ( \imp ( \imp ( \imp ( \imp \bot \bot ) \bot ) ( \imp \bot \bot ) ) \bot ) ) ( \imp ( \imp ( \imp ( \imp ( \imp ( \imp \bot \bot ) \bot ) ( \imp \bot \bot ) ) \bot ) \bot ) ( \imp \bot \bot ) ) ) $= ? $.

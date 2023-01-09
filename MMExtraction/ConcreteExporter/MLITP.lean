@@ -10,7 +10,7 @@ namespace ML.MLITP
 
 open ML.Meta
 
-
+deriving instance Repr for Pattern 
 
 inductive Statement (𝕊 : Type) where 
 | tautology : Pattern 𝕊 → Statement 𝕊 
@@ -19,6 +19,7 @@ inductive Statement (𝕊 : Type) where
 | fresh : Var → Pattern 𝕊 → Statement 𝕊 
 | substitution (var : Var) (substituent : Pattern 𝕊) (target : Pattern 𝕊) (result : Pattern 𝕊 := target[var ⇐ substituent]) : Statement 𝕊 
 | context : Var → Pattern 𝕊 → Statement 𝕊
+  deriving DecidableEq, Inhabited, Repr 
 
 variable {𝕊 : Type} [ToMMClaim 𝕊]
 
@@ -79,6 +80,7 @@ do
     }]
   }
   mmfile.writeToFile fname
+
 
 
 
@@ -146,12 +148,15 @@ do
 def runProver (statement : Statement 𝕊) 
   (fname : System.FilePath := "temp.mm") 
   (label := statement.toLabel)
-  (command : ProverCommand := statement.toProverCommand) 
+  (command : ProverCommand := statement.toProverCommand)
+  (deleteTempFile := false) 
   : IO String :=
 do 
   createTempFile statement fname label
-  runProverOnFile fname label command 
-
+  let output ← runProverOnFile fname label command 
+  if deleteTempFile then 
+    IO.FS.removeFile fname
+  return output 
   
 
 -- #eval runProver (.tautology (⊥ ⇒ ⊥ : Pattern Empty)) 
@@ -178,7 +183,7 @@ do
   return stdout 
 
 
-#eval normalizeProof (label := "temp")
+#eval normalizeProof (label := "__SUBST_____x0____bot_____x0____bot")
 #check List.isInfix
 
 

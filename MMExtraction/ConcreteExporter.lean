@@ -53,58 +53,42 @@ deriving instance Repr for Empty
 
 
 
-
-
-
-/- Freshness. Done, modulo bug fixes. -/
-
-section Freshness 
-
-end Freshness
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-def Proof.toMMFile {𝕊 : Type} [ToMMClaim 𝕊] [DecidableEq 𝕊] {Γ : Premises 𝕊} {φ : Pattern 𝕊} (proof : Proof Γ φ) 
+def Proof.toMMFile {𝕊 : Type} [ToMMClaim 𝕊] [DecidableEq 𝕊] {Γ : Premises 𝕊} {φ : Pattern 𝕊} 
+  (proof : Proof Γ φ) 
   (label : String := "") 
-  (pathToMatchingLogic : System.FilePath := "matching-logic.mm") 
-  (pathToMatchingLogicPrelude : System.FilePath := "matching-logic-prelude.mm")
   (pathToMatchingLogicPropositional : System.FilePath := "matching-logic-propositional.mm")
-  (shapes : List <| Shape 𝕊 := [])
+  (shapes : List <| Shape 𝕊 := Shape.standardPropositional)
   (premiseShapes : List <| Shape 𝕊 := [])
-  : MMFile := 
-Id.run do 
-  let mmproof := proof.toMMProof shapes premiseShapes |>.get! 
-  let mmtheorem : MMTheorem := {
-    conclusion := toMMClaim φ
-    proof := mmproof 
+  : IO MMFile := 
+do   
+  let mut statementTheorems : Array String := #[]
+  for statement in proof.statements shapes do 
+    let statementTheorem ← MLITP.runProver statement 
+    if !statementTheorems.contains statementTheorem then 
+      statementTheorems := statementTheorems.push statementTheorem
+    
+  let mainThm : MMTheorem := {
     label := label 
     env := proof.createEnv 
+    proof := proof.toMMProof shapes premiseShapes |>.get! 
+    kind := .logical 
+    conclusion := toMMClaim φ
+  }  
+  return {
+    rawTheorems := statementTheorems.toList 
+    theorems := [mainThm]
+    includes := [pathToMatchingLogicPropositional]
   }
-  return .fromMMTheorems [mmtheorem] [pathToMatchingLogic, pathToMatchingLogicPrelude, pathToMatchingLogicPropositional]
 
-
-
-
-def extractProofToMM {𝕊 : Type} [ToMMClaim 𝕊] [DecidableEq 𝕊] {Γ : Premises 𝕊} {φ : Pattern 𝕊} (proof : Proof Γ φ) 
+def extractProofToMM {𝕊 : Type} [ToMMClaim 𝕊] [DecidableEq 𝕊] {Γ : Premises 𝕊} {φ : Pattern 𝕊} 
+  (proof : Proof Γ φ) 
   (label : String := "") 
-  (pathToMatchingLogic : System.FilePath := "matching-logic.mm")
+  (pathToMatchingLogicPropositional : System.FilePath := "matching-logic-propositional.mm")
   (fname? : Option System.FilePath := none) 
+  (shapes : List <| Shape 𝕊 := Shape.standardPropositional)
+  (premiseShapes : List <| Shape 𝕊 := [])
   : IO Unit := do 
-  let mmfile : MMFile := Proof.toMMFile proof label pathToMatchingLogic
+  let mmfile : MMFile ← Proof.toMMFile proof label pathToMatchingLogicPropositional shapes premiseShapes
   if let some fname := fname? then 
     mmfile.writeToFile fname 
   else 
@@ -117,16 +101,26 @@ def verifyFile (pathToMetamath : System.FilePath) (fname : System.FilePath) : IO
     args := #["--verify", toString fname]
   }
   return output.exitCode == 0  
+-- #reduce @Proof.implSelf Empty ∅ ⊥ 
 
+-- def thm' : ∅ ⊢ (⊥ ⇒ ⊥ : Pattern Empty) := .tautology <| by unfold_tautology!; intros; assumption
+def thm' (φ ψ χ : Pattern Empty) : ∅ ⊢ (φ ⇒ ψ) ⇒ (ψ ⇒ χ) ⇒ (φ ⇒ χ) := Proof.tautology <| by 
+  unfold_tautology!
+  intros h h' 
+  exact h' ∘ h
 
+-- #eval thm' ⊥ ⊤ ⊥ |>.toMMFile
 
+-- #eval @Proof.implSelf Empty ∅ ⊥ |>.statements 
+
+#eval Proof.toMMFile /-(fname? := some "test-extracted.mm")-/ (@Proof.implSelf Empty ∅ ⊥) (shapes := [])
 
 def main : IO Unit := do 
   let fname : System.FilePath := "test-extracted.mm"
-  extractProofToMM (@ML.Proof.existence Empty ∅ (⟨0⟩)) (label := "existence-test") (fname? := some fname) 
+  extractProofToMM (@Proof.implSelf Empty ∅ ⊥) (label := "test") (fname? := some fname) (shapes := [])
   if ← verifyFile "/home/horatiu/metamath-knife/metamath-knife" fname then 
     IO.println "success"
   else 
     IO.println "failure"
 
-#eval main
+-- #eval main

@@ -169,6 +169,8 @@ inductive MMProof where
 | incomplete 
   deriving BEq, Inhabited, Repr 
 
+
+
 partial def MMProof.toMM (proof : MMProof) : String := 
   match proof with 
   | app head args => joinWith (args.map MMProof.toMM) " " ++ " " ++ head
@@ -176,7 +178,7 @@ partial def MMProof.toMM (proof : MMProof) : String :=
 
 inductive MMTheoremKind where
   | logical | positive | negative | fresh | substitution | context 
-  deriving BEq, Inhabited, Repr 
+  deriving DecidableEq, Inhabited, Repr 
 
 structure MMTheorem where 
   label : String 
@@ -204,7 +206,8 @@ namespace MMTheorem
       | .substitution => "#Substitution"
       | .context => "#ApplicationContext"
 
-    (if !thm.env.metavars.isEmpty then s!"$v {metavarsStr} $." ++ "\n" ++ s!"$d {metavarsStr} $." else "") ++ "\n" 
+    (if !thm.env.metavars.isEmpty then s!"$v {metavarsStr} $." else "") ++ "\n" 
+      ++ (if thm.env.metavars.length > 1 then s!"$d {metavarsStr} $." else "") ++ "\n"
       ++ floatingsStr ++ ⟨[endl]⟩
       ++ beginScope 
       ++ essentialsStr ++ ⟨[endl]⟩
@@ -221,6 +224,7 @@ end MMTheorem
 structure MMFile where 
   theorems : List MMTheorem 
   includes : List System.FilePath 
+  rawTheorems : List String := [] 
   deriving BEq, Inhabited, Repr
 
 namespace MMFile 
@@ -238,7 +242,8 @@ namespace MMFile
       |>.map (fun filename => s! "$[ {filename} $]")
       |>.foldl (init := "") (.++⟨[endl]⟩++.)
     includesStr ++ ⟨[endl]⟩ 
-      ++ file.theorems[0]!.toMM
+      ++ file.rawTheorems.foldl (. ++ "\n" ++ .) ""
+      ++ (file.theorems.map MMTheorem.toMM |>.foldl (.++⟨[endl]⟩++.) "")
 
   def writeToFile (mmfile : MMFile) (fname : System.FilePath) : IO Unit := do 
     IO.FS.writeFile fname mmfile.toMM
