@@ -44,8 +44,8 @@ protected def Pattern.toMMProof : Pattern 𝕊 → MMProof
 | ⊥ => .app "bot-is-pattern" []
 | φ ⇒ ψ => .app "imp-is-pattern" [φ.toMMProof, ψ.toMMProof]
 | φ ⬝ ψ => .app "app-is-pattern" [φ.toMMProof, ψ.toMMProof]
-| ∃∃ x φ => .app "exists-is-pattern" [x.toMMProof, φ.toMMProof] 
-| μ X φ => .app "mu-is-pattern" [X.toMMProof, φ.toMMProof]
+| ∃∃ x φ => .app "exists-is-pattern" [φ.toMMProof, x.toMMProof] 
+| μ X φ => .app "mu-is-pattern" [φ.toMMProof, X.toMMProof]
 | symbol σ => .app "symbol-is-pattern" [toMMProof σ]
 
 instance : ToMMProof <| Pattern 𝕊 := ⟨Pattern.toMMProof⟩

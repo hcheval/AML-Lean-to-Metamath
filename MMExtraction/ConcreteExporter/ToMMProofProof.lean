@@ -13,13 +13,13 @@ set_option autoImplicit false
 set_option linter.unusedVariables.patternVars false
 
 namespace ML 
-
+#check List.find?
 open ML.Meta
 open MLITP (Statement)
 
 
 
-variable {𝕊 : Type} [DecidableEq 𝕊] [ToMMClaim 𝕊]
+variable {𝕊 : Type} [DecidableEq 𝕊] [ToMMClaim 𝕊] [Repr 𝕊]
 
 @[for_matching_logic, simp]
 def Pattern.getFreshSVar : ML.Pattern 𝕊 → SVar 
@@ -36,11 +36,11 @@ def Proof.statements {Γ : Premises 𝕊} {φ : Pattern 𝕊} (proof : Proof Γ 
   | @premise _ _ φ _ hmem => 
     []
   | @modusPonens _ _ φ ψ h₁ h₂ => 
-    .union h₁.statements h₂.statements
+    .union (h₁.statements shapes) (h₂.statements shapes)
   | @existQuan _ _ φ x y sfi => 
     [.substitution (.evar x) (.evar y) φ]
   | @existGen _ _ φ ψ x nfv h => 
-    h.statements.insert <| .fresh (.evar x) ψ 
+    h.statements shapes |>.insert <| .fresh (.evar x) ψ 
   | @existence _ _ x => 
     []
   | @propagationBottomLeft _ _ c => 
@@ -60,11 +60,11 @@ def Proof.statements {Γ : Premises 𝕊} {φ : Pattern 𝕊} (proof : Proof Γ 
   | @framingRight _ _ φ ψ χ h => 
     []
   | @substitution _ _ φ ψ X sfi h => 
-    h.statements.insert <| .substitution (.svar X) ψ φ
+    h.statements shapes |>.insert <| .substitution (.svar X) ψ φ
   | @prefixpoint _ _ φ X pos sfi => 
     [.positive (.svar X) φ]
   | @knasterTarski _ _ φ ψ X sfi h => 
-    h.statements
+    h.statements shapes
   | @Proof.singleton _ _ C₁ C₂ x φ => 
     []
 
@@ -90,8 +90,8 @@ do
     return .app "proof-rule-mp" [
       φ.toMMProof,    -- ph0 
       ψ.toMMProof,    -- ph1 
-      ← h₂.toMMProof, -- proof-rule-mp.1
-      ← h₁.toMMProof  -- proof-rule-mp.0
+      ← h₂.toMMProof shapes premiseShapes, -- proof-rule-mp.1
+      ← h₁.toMMProof shapes premiseShapes -- proof-rule-mp.0
     ] 
   | @existQuan _ _ φ x y sfi => 
     return .app "proof-rule-exists" [
@@ -106,7 +106,7 @@ do
       φ.toMMProof,                                      -- ph0
       ψ.toMMProof,                                      -- ph1
       x.toMMProof,                                      -- x
-      ← h.toMMProof,                                    -- proof-rule-gen.0
+      ← h.toMMProof shapes premiseShapes,                                    -- proof-rule-gen.0
       .app (Statement.fresh (.evar x) ψ |>.toLabel) []  -- proof-rule.gen.1 
     ]
   | @existence _ _ x => 
@@ -160,7 +160,7 @@ do
       .app (Statement.context (.svar X) C |>.toLabel) [],              -- proof-rule-frame.0
       .app (Statement.substitution (.svar X) φ C |>.toLabel) [],       -- proof-rule-frame.1
       .app (Statement.substitution (.svar X) ψ C |>.toLabel) [],       -- proof-rule-frame.2
-      ← h.toMMProof                                                    -- proof-rule-frame.3
+      ← h.toMMProof shapes premiseShapes                                                   -- proof-rule-frame.3
     ]
   | @substitution _ _ φ ψ X sfi h => 
     return .app "proof-rule-set-var-substitution" [
@@ -169,7 +169,7 @@ do
       ψ.toMMProof,                                                       -- ph2 
       X.toMMProof,                                                       -- X
       .app (MLITP.Statement.substitution (.svar X) ψ φ |>.toLabel) [],   -- proof-rule-set-var-substitution.0
-      ← h.toMMProof                                                      -- proof-rule-set-var-substitution.1
+      ← h.toMMProof shapes premiseShapes                                                     -- proof-rule-set-var-substitution.1
     ]
   | @prefixpoint _ _ φ X pos sfi => 
     return .app "proof-rule-prefixpoint" [
@@ -184,7 +184,7 @@ do
       ψ.toMMProof, 
       X.toMMProof, 
       .app (Statement.substitution (.svar X) ψ φ |>.toLabel) [],
-      ← h.toMMProof
+      ← h.toMMProof shapes premiseShapes
     ]
   | @Proof.singleton _ _ C₁ C₂ x φ => 
     let X : SVar := /- placeholder -/ ⟨101⟩  
@@ -228,5 +228,4 @@ def thm (φ ψ χ : Pattern Empty) : ∅ ⊢ (φ ⇒ ψ) ⇒ (ψ ⇒ χ) ⇒ (φ
 
 -- ⊥ ⇒ ⊥       ?φ ⇒ ?φ 
 -- ⊤ ⇒ ⊤       ?φ ⇒ ?φ
-
 

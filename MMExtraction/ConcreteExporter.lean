@@ -28,7 +28,7 @@ instance : ToString SVar where
 
 variable {𝕊 : Type} 
 
-variable [ToMMClaim 𝕊]
+variable [ToMMClaim 𝕊] [Repr 𝕊]
 
 
 
@@ -53,7 +53,7 @@ deriving instance Repr for Empty
 
 
 
-def Proof.toMMFile {𝕊 : Type} [ToMMClaim 𝕊] [DecidableEq 𝕊] {Γ : Premises 𝕊} {φ : Pattern 𝕊} 
+def Proof.toMMFile {𝕊 : Type} [ToMMClaim 𝕊] [DecidableEq 𝕊] [Repr 𝕊] {Γ : Premises 𝕊} {φ : Pattern 𝕊} 
   (proof : Proof Γ φ) 
   (label : String := "") 
   (pathToMatchingLogicPropositional : System.FilePath := "matching-logic-propositional.mm")
@@ -64,6 +64,7 @@ do
   let mut statementTheorems : Array String := #[]
   for statement in proof.statements shapes do 
     let statementTheorem ← MLITP.runProver statement 
+    dbg_trace statementTheorem
     if !statementTheorems.contains statementTheorem then 
       statementTheorems := statementTheorems.push statementTheorem
     
@@ -80,7 +81,7 @@ do
     includes := [pathToMatchingLogicPropositional]
   }
 
-def extractProofToMM {𝕊 : Type} [ToMMClaim 𝕊] [DecidableEq 𝕊] {Γ : Premises 𝕊} {φ : Pattern 𝕊} 
+def extractProofToMM {𝕊 : Type} [ToMMClaim 𝕊] [DecidableEq 𝕊] [Repr 𝕊] {Γ : Premises 𝕊} {φ : Pattern 𝕊} 
   (proof : Proof Γ φ) 
   (label : String := "") 
   (pathToMatchingLogicPropositional : System.FilePath := "matching-logic-propositional.mm")
@@ -115,7 +116,7 @@ def thm' (φ ψ χ : Pattern Empty) : ∅ ⊢ (φ ⇒ ψ) ⇒ (ψ ⇒ χ) ⇒ (�
 
 -- #eval Proof.toMMFile /-(fname? := some "test-extracted.mm")-/ (@Proof.implSelf Empty ∅ ⊥) (shapes := [])
 
-def extractProofToMMAndVerify {𝕊 : Type} [ToMMClaim 𝕊] [DecidableEq 𝕊] {Γ : Premises 𝕊} {φ : Pattern 𝕊} 
+def extractProofToMMAndVerify {𝕊 : Type} [ToMMClaim 𝕊] [DecidableEq 𝕊] [Repr 𝕊] {Γ : Premises 𝕊} {φ : Pattern 𝕊} 
   (proof : Proof Γ φ)
   (pathToMetamath : System.FilePath)
   (fname : System.FilePath)
@@ -145,21 +146,25 @@ section TestsForBasicRules
 
 def x₀ : EVar := ⟨0⟩
 
+#eval (∃∃ x₀ x₀ : Pattern Empty).toMMProof.toMM
 
 def existence₁ : ∅ ⊢ (∃∃ x₀ x₀ : Pattern Empty) := .existence
 
-def modusPonens₁ : ∅ ⊢ (⊥ ⇒ ⊤ : Pattern Empty) := .modusPonens (.tautology <| by unfold_tautology!; intros; trivial) .implSelf
+def implSelf₂ : ∅ ⊢ (∃∃ x₀ x₀ ⇒ ∃∃ x₀ x₀ : Pattern Empty) := .implSelf 
+
+def modusPonens₁ : ∅ ⊢ (⊥ ⇒ ⊥ : Pattern Empty) := .implSelf -- because it uses `syllogism` which is two application of `modusPonens` 
 
 def modusPonens₂ : ∅ ⊢ (∃∃ x₀ x₀ : Pattern Empty) := .modusPonens .existence .implSelf 
 
-def implSelf₁ : ∅ ⊢ (⊥ ⇒ ⊥ : Pattern Empty) := .implSelf 
+def implSelf₁ : ∅ ⊢ (⊤ : Pattern Empty) := .tautology <| by unfold_tautology! 
 
+#eval modusPonens₁.statements (shapes := [])
 
 #eval extractProofToMMAndVerify 
         (implSelf₁) 
         (fname := "test-extracted.mm") 
         (pathToMetamath := "/home/horatiu/metamath-knife/metamath-knife")
         (label := "test")
-        (shapes := [])
+        -- (shapes := [])
 
 end TestsForBasicRules 

@@ -34,7 +34,7 @@ variable {𝕊 : Type} [ToMMClaim 𝕊]
 
 def Statement.toLabel (statement : Statement 𝕊) : String := 
   match statement with 
-  | tautology φ => φ.toLabel 
+  | tautology φ => s!"__TAUTO__{φ.toLabel}" -- this does not work if the string contains whitespace at the end. Why? 
   | positive xX φ => s! "__POSITIVE__{xX.toPattern 𝕊 |>.toLabel}__{φ.toLabel}"  
   | negative xX φ => s! "__NEGATIVE__{xX.toPattern 𝕊 |>.toLabel}__{φ.toLabel}"  
   | fresh xX φ => s! "__FRESH__{xX.toPattern 𝕊 |>.toLabel}__{φ.toLabel}" 
@@ -152,7 +152,6 @@ do
   return extractTheorem stdout  
 
 
-#eval do IO.println <| (← runProverOnFile "temp.mm" "__LP-bot-imp-bot-RP" .tautology)
 
 def runProver (statement : Statement 𝕊) 
   (fname : System.FilePath := "temp.mm") 
@@ -162,17 +161,20 @@ def runProver (statement : Statement 𝕊)
   : IO String :=
 do 
   createTempFile statement fname label
+  dbg_trace fname
+  dbg_trace label 
+  dbg_trace command 
   let output ← runProverOnFile fname label command 
   if deleteTempFile then 
     IO.FS.removeFile fname
   return output 
   
 
--- #eval runProver (.tautology (⊥ ⇒ ⊥ : Pattern Empty)) 
--- #eval runProver (.fresh (.inl ⟨0⟩) (⊥ ⇒ (.evar ⟨1⟩) : Pattern Empty)) 
--- #eval runProver (.positive (.inl ⟨0⟩) (⊥ ⇒ ⊥ : Pattern Empty))
-#eval runProver (.substitution (.evar ⟨0⟩) (⊥ : Pattern Empty) (.evar ⟨0⟩ : Pattern Empty))
+#eval runProver (.tautology (⊥ ⇒ ⊥ : Pattern Empty)) 
+-- #eval runProver (.fresh (.evar ⟨0⟩) (⊥ ⇒ (.evar ⟨1⟩) : Pattern Empty)) 
+-- #eval runProver (.positive (.evar ⟨0⟩) (⊥ ⇒ ⊥ : Pattern Empty))
 
+-- #eval do IO.println <| (← runProverOnFile "temp.mm" "__LP-bot-imp-bot-RP" .tautology)
 
 
 

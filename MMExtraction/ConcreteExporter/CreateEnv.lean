@@ -152,7 +152,7 @@ def Proof.tautologiesUsed {Γ : Premises 𝕊} {φ : Pattern 𝕊} (proof : Proo
 
 -- 
 def Proof.createEnv {Γ : Premises 𝕊} {φ : Pattern 𝕊} (proof : Proof Γ φ) 
-  (shapes : List <| Shape 𝕊 := [])
+  (premiseShapes : List <| Shape 𝕊 := [])
   : Env := 
 Id.run do 
   let mut env : Env := {}
