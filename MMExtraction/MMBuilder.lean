@@ -80,16 +80,14 @@ def Metavar.equalNames : Metavar → Metavar → Bool := (name . == name .)
   * `assumption` - the axiom (i.e. `$a` statements) required by the theorem 
 -/
 structure Env where 
-  metavars : List Metavar := []
-  essentials : List Hypothesis := []
-  assumptions : List Hypothesis := []
+  metavars : Array Metavar := #[]
+  essentials : Array Hypothesis := #[]
+  assumptions : Array Hypothesis := #[]
   deriving DecidableEq, Inhabited, Repr
 
 
 
 namespace Env 
-
-
 
 
 
@@ -151,14 +149,6 @@ namespace Env
   instance : Append Env := ⟨merge⟩
 
 
-  -- TODO: something less stupid
-  def eraseDup (env : Env) : Env := 
-    { env with 
-      metavars := env.metavars.eraseDup 
-      essentials := env.essentials.eraseDup 
-      assumptions := env.assumptions.eraseDup 
-    }
-
   def containsMetavar (env : Env) : Metavar → Bool := 
     env.metavars.contains 
 
@@ -180,6 +170,15 @@ inductive MMTheoremKind where
   | logical | positive | negative | fresh | substitution | context 
   deriving DecidableEq, Inhabited, Repr 
 
+def MMTheoremKind.toLeadingToken : MMTheoremKind → String 
+  | logical => "|-"
+  | positive => "#Positive"
+  | negative => "#Negative"
+  | fresh => "#Fresh"
+  | substitution => "#Substitution"
+  | context => "#ApplicationContext"
+
+
 structure MMTheorem where 
   label : String 
   env : Env 
@@ -197,22 +196,14 @@ namespace MMTheorem
     
     let ⟨beginScope, endScope⟩ : String × String := 
       if essentialsStr.length > 0 then ⟨"${", "$}"⟩ else ⟨"", ""⟩
-    
-    let leading := match thm.kind with 
-      | .logical => "|-"
-      | .positive => "#Positive"
-      | .negative => "#Negative"
-      | .fresh => "#Fresh"
-      | .substitution => "#Substitution"
-      | .context => "#ApplicationContext"
 
     (if !thm.env.metavars.isEmpty then s!"$v {metavarsStr} $." else "") ++ "\n" 
-      ++ (if thm.env.metavars.length > 1 then s!"$d {metavarsStr} $." else "") ++ "\n"
+      ++ (if thm.env.metavars.size > 1 then s!"$d {metavarsStr} $." else "") ++ "\n"
       ++ floatingsStr ++ ⟨[endl]⟩
       ++ beginScope 
       ++ essentialsStr ++ ⟨[endl]⟩
       ++ thm.label ++ " "
-      ++ s! "$p {leading} {toString thm.conclusion} $= {thm.proof.toMM} $." ++ ⟨[endl]⟩
+      ++ s! "$p {thm.kind.toLeadingToken} {toString thm.conclusion} $= {thm.proof.toMM} $." ++ ⟨[endl]⟩
       ++ endScope
 
   def containsMetavar (thm : MMTheorem) : Metavar → Bool := 

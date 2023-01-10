@@ -20,8 +20,8 @@ protected def SVar.toMMClaim : SVar → String
 instance : ToMMClaim SVar := ⟨SVar.toMMClaim⟩
 
 protected def Var.toMMClaim : Var → String 
-  | .inl x => toMMClaim x 
-  | .inr X => toMMClaim X 
+  | .evar x => toMMClaim x 
+  | .svar X => toMMClaim X 
 
 instance : ToMMClaim Var := ⟨Var.toMMClaim⟩
 

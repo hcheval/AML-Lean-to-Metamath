@@ -13,11 +13,20 @@ open ML.Meta
 deriving instance Repr for Pattern 
 
 inductive Statement (𝕊 : Type) where 
+/-- `tautology φ` is the statement that `φ` is a tautology -/
 | tautology : Pattern 𝕊 → Statement 𝕊 
+/-- `positive xX φ` is the statement that `φ` is positive for `xX` -/
 | positive : Var → Pattern 𝕊 → Statement 𝕊 
+/-- `negative xX φ` is the statement that `φ` is negative for `xX` -/
 | negative : Var → Pattern 𝕊 → Statement 𝕊 
+/-- `fresh xX φ` is the statement that `xX` is fresh in `φ` -/
 | fresh : Var → Pattern 𝕊 → Statement 𝕊 
+/-- 
+`substitution var substituent target result` is the statement that `target[var ⇐ substituent] = result`.
+The `result` argument has the default value of `target[var ⇐ substituent]`
+ -/
 | substitution (var : Var) (substituent : Pattern 𝕊) (target : Pattern 𝕊) (result : Pattern 𝕊 := target[var ⇐ substituent]) : Statement 𝕊 
+/-- `context xX φ` is the statement that `φ = C[xX]` for some `C : AppContext` -/
 | context : Var → Pattern 𝕊 → Statement 𝕊
   deriving DecidableEq, Inhabited, Repr 
 
@@ -162,7 +171,7 @@ do
 -- #eval runProver (.tautology (⊥ ⇒ ⊥ : Pattern Empty)) 
 -- #eval runProver (.fresh (.inl ⟨0⟩) (⊥ ⇒ (.evar ⟨1⟩) : Pattern Empty)) 
 -- #eval runProver (.positive (.inl ⟨0⟩) (⊥ ⇒ ⊥ : Pattern Empty))
-#eval runProver (.substitution (.inl ⟨0⟩) (⊥ : Pattern Empty) (.evar ⟨0⟩ : Pattern Empty))
+#eval runProver (.substitution (.evar ⟨0⟩) (⊥ : Pattern Empty) (.evar ⟨0⟩ : Pattern Empty))
 
 
 

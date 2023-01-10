@@ -113,14 +113,53 @@ def thm' (φ ψ χ : Pattern Empty) : ∅ ⊢ (φ ⇒ ψ) ⇒ (ψ ⇒ χ) ⇒ (�
 
 -- #eval @Proof.implSelf Empty ∅ ⊥ |>.statements 
 
-#eval Proof.toMMFile /-(fname? := some "test-extracted.mm")-/ (@Proof.implSelf Empty ∅ ⊥) (shapes := [])
+-- #eval Proof.toMMFile /-(fname? := some "test-extracted.mm")-/ (@Proof.implSelf Empty ∅ ⊥) (shapes := [])
 
-def main : IO Unit := do 
-  let fname : System.FilePath := "test-extracted.mm"
-  extractProofToMM (@Proof.implSelf Empty ∅ ⊥) (label := "test") (fname? := some fname) (shapes := [])
-  if ← verifyFile "/home/horatiu/metamath-knife/metamath-knife" fname then 
-    IO.println "success"
-  else 
-    IO.println "failure"
+def extractProofToMMAndVerify {𝕊 : Type} [ToMMClaim 𝕊] [DecidableEq 𝕊] {Γ : Premises 𝕊} {φ : Pattern 𝕊} 
+  (proof : Proof Γ φ)
+  (pathToMetamath : System.FilePath)
+  (fname : System.FilePath)
+  (label : String := "")
+  (pathToMatchingLogicPropositional : System.FilePath := "matching-logic-propositional.mm")
+  (shapes : List <| Shape 𝕊 := Shape.standardPropositional)
+  (premiseShapes : List <| Shape 𝕊 := [])
+  : IO Bool := 
+do 
+  extractProofToMM proof label pathToMatchingLogicPropositional fname shapes premiseShapes 
+  verifyFile pathToMetamath fname
+
+-- def main : IO Unit := do 
+--   let fname : System.FilePath := "test-extracted.mm"
+--   extractProofToMM (@Proof.implSelf Empty ∅ ⊥) (label := "test") (fname? := some fname) 
+--   if ← verifyFile "/home/horatiu/metamath-knife/metamath-knife" fname then 
+--     IO.println "success"
+--   else 
+--     IO.println "failure"
 
 -- #eval main
+
+
+
+
+section TestsForBasicRules
+
+def x₀ : EVar := ⟨0⟩
+
+
+def existence₁ : ∅ ⊢ (∃∃ x₀ x₀ : Pattern Empty) := .existence
+
+def modusPonens₁ : ∅ ⊢ (⊥ ⇒ ⊤ : Pattern Empty) := .modusPonens (.tautology <| by unfold_tautology!; intros; trivial) .implSelf
+
+def modusPonens₂ : ∅ ⊢ (∃∃ x₀ x₀ : Pattern Empty) := .modusPonens .existence .implSelf 
+
+def implSelf₁ : ∅ ⊢ (⊥ ⇒ ⊥ : Pattern Empty) := .implSelf 
+
+
+#eval extractProofToMMAndVerify 
+        (implSelf₁) 
+        (fname := "test-extracted.mm") 
+        (pathToMetamath := "/home/horatiu/metamath-knife/metamath-knife")
+        (label := "test")
+        (shapes := [])
+
+end TestsForBasicRules 

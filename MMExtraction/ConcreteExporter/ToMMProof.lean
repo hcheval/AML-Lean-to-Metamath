@@ -31,8 +31,8 @@ protected def SVar.toMMProof : SVar → MMProof
 instance : ToMMProof SVar where toMMProof := SVar.toMMProof
 
 protected def Var.toMMProof : Var → MMProof 
-  | .inl x => toMMProof x 
-  | .inr X => toMMProof X
+  | .evar x => toMMProof x 
+  | .svar X => toMMProof X
 
 instance : ToMMProof Var := ⟨Var.toMMProof⟩
 
