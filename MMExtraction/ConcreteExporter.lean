@@ -52,7 +52,6 @@ deriving instance Repr for Empty
 
 
 
-
 def Proof.toMMFile {𝕊 : Type} [ToMMClaim 𝕊] [DecidableEq 𝕊] [Repr 𝕊] {Γ : Premises 𝕊} {φ : Pattern 𝕊} 
   (proof : Proof Γ φ) 
   (label : String := "") 
@@ -161,10 +160,10 @@ def implSelf₁ : ∅ ⊢ (⊤ : Pattern Empty) := .tautology <| by unfold_tauto
 #eval modusPonens₁.statements (shapes := [])
 
 #eval extractProofToMMAndVerify 
-        (implSelf₁) 
+        (modusPonens₁) 
         (fname := "test-extracted.mm") 
         (pathToMetamath := "/home/horatiu/metamath-knife/metamath-knife")
         (label := "test")
-        -- (shapes := [])
+        (shapes := [])
 
 end TestsForBasicRules 

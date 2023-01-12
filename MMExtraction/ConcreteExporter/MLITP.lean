@@ -12,6 +12,16 @@ open ML.Meta
 
 deriving instance Repr for Pattern 
 
+/--
+  `Statement 𝕊` is a statement to be automately proved by invoking the `ml.itp` prover.
+  It can be one of:
+  * `tautology φ`: a proof that `φ` is a tautology 
+  * `positive xX φ`: a proof that `φ` is positive for `xX`
+  * `negative xX φ`: a proof that `φ` is negative for `xX` 
+  * `fresh xX φ`: a proof that `xX` is fresh in `φ` 
+  * `substitution var substituent target result`: a proof that `result = target[var ⇐ substituent]`
+  * `context xX c`: proof that `c` is an application context in `xX`.  
+-/
 inductive Statement (𝕊 : Type) where 
 /-- `tautology φ` is the statement that `φ` is a tautology -/
 | tautology : Pattern 𝕊 → Statement 𝕊 

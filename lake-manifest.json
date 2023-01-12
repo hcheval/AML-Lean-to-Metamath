@@ -10,19 +10,19 @@
   {"git":
    {"url": "https://github.com/leanprover/lake",
     "subDir?": null,
-    "rev": "235383015cdcb0082777b0347b84dba01843c79c",
+    "rev": "d0b530530f14dde97a547b03abf87eee06360d60",
     "name": "lake",
     "inputRev?": "master"}},
   {"git":
    {"url": "https://github.com/leanprover/doc-gen4",
     "subDir?": null,
-    "rev": "f221bbdcffe6a17bb310f0e9ee10767812b03e13",
+    "rev": "09dbebed9ca85368152bb5146ef6f1271b1be425",
     "name": "doc-gen4",
     "inputRev?": "main"}},
   {"git":
    {"url": "https://gitlab.com/ilds/aml-lean/MatchingLogic.git",
     "subDir?": null,
-    "rev": "0eef0d7a2e39ee3d7af6b29a41cf534ba4e3a151",
+    "rev": "86b949588ccffaea910628fb79ad42c2e302d317",
     "name": "MatchingLogic",
     "inputRev?": "no-wf"}},
   {"git":
@@ -34,7 +34,7 @@
   {"git":
    {"url": "https://github.com/leanprover-community/mathlib4.git",
     "subDir?": null,
-    "rev": "f976b5e659f4cd82fed4eb547ae4057f7d576c61",
+    "rev": "c2bad43c73c3128bc7286a5366815c8eaf20a251",
     "name": "mathlib",
     "inputRev?": null}},
   {"git":
@@ -46,13 +46,13 @@
   {"git":
    {"url": "https://github.com/JLimperg/aesop",
     "subDir?": null,
-    "rev": "ebea1013bc12e73193c5b6148271c1360addd298",
+    "rev": "645e92db52499582bb31984396a5e41772241012",
     "name": "aesop",
     "inputRev?": "master"}},
   {"git":
    {"url": "https://github.com/hargonix/LeanInk",
     "subDir?": null,
-    "rev": "9f3101452135964ac9107ec8e9910bfd14022bbc",
+    "rev": "2447df5cc6e48eb965c3c3fba87e46d353b5e9f1",
     "name": "leanInk",
     "inputRev?": "doc-gen"}},
   {"git":
@@ -64,6 +64,6 @@
   {"git":
    {"url": "https://github.com/leanprover/std4",
     "subDir?": null,
-    "rev": "bf3acbb326513731ebb856717731cc1cd6a91d61",
+    "rev": "fde95b16907bf38ea3f310af406868fc6bcf48d1",
     "name": "std",
     "inputRev?": "main"}}]}

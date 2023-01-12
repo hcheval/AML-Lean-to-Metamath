@@ -39,8 +39,8 @@ instance : ToMMProof Var := ⟨Var.toMMProof⟩
 section variable {𝕊 : Type} [ToMMProof 𝕊] 
 
 protected def Pattern.toMMProof : Pattern 𝕊 → MMProof 
-| evar x => .app "var-is-pattern" [.app "element-var-is-var" [x.toMMProof]]
-| svar X => .app "var-is-pattern" [.app "set-var-is-var" [X.toMMProof]]
+| evar x => .app "var-is-pattern" [.app "element-var-is-var" [x.toMMProof] ]
+| svar X => .app "var-is-pattern" [.app "set-var-is-var" [X.toMMProof] ]
 | ⊥ => .app "bot-is-pattern" []
 | φ ⇒ ψ => .app "imp-is-pattern" [φ.toMMProof, ψ.toMMProof]
 | φ ⬝ ψ => .app "app-is-pattern" [φ.toMMProof, ψ.toMMProof]
